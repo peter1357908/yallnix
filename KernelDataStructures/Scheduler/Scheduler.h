@@ -1,4 +1,8 @@
 // Scheduler
+    // scheduler will manage processes and moving them 
+    // between states
+    // implementation TBD
+
     // PCB_T * currentProcess
     // PCB_T * idleProcess
 
