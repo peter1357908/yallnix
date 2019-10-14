@@ -68,7 +68,7 @@ int KernelDelay(int clock_ticks){
         // return Error
     // ticksLeft = clock_ticks
     // while ticksLeft > 0:
-        // wait for TRAP_CLOCK
+        // Kernel_CvarWait(clock_id, &lock) // figure out what to do with this lock
         // decrement ticksLeft
     // return 0
 }
