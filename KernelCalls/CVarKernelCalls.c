@@ -7,6 +7,7 @@ int Kernel_CvarInit(int *cvar_idp) {
 }
 
 int Kernel_CvarSignal(int cvar_id){
+    // Cvar = CvarMap.getItem(cvar_id)
     // pid = Cvar.pop() (reminder that Cvar is a queue)
     // move process PID from blocked to ready
     // return 0 if no error
