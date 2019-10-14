@@ -13,6 +13,30 @@ int itemCount; // use this for lock, cvar, and pipe ids
 // Interrupt Vector Array
 // Syscall Vector Array
 
+// int cvar_clock_id; // id to clock's Cvar 
+    // place this in CvarMap
+    // handleTrapClock() will broadcast to this cVar
+
+// lock_t tty0Lock
+// bool tty0CanTransfer = true
+// int cvar_tty0 // place in CVarMap
+// void * tty0Buf -- buffer that can grow dynamically
+
+// lock_t tty1Lock
+// bool tty1CanTransfer = true
+// int cvar_tty1 // place in CVarMap
+// void * tty1Buf -- buffer that can grow dynamically
+
+// lock_t tty2Lock
+// bool tty2CanTransfer = true
+// int cvar_tty2 // place in CVarMap
+// void * tty2Buf -- buffer that can grow dynamically
+
+// lock_t tty3Lock
+// bool tty3CanTransfer = true
+// int cvar_tty3 // place in CVarMap
+// void * tty2Buf -- buffer that can grow dynamically
+
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
