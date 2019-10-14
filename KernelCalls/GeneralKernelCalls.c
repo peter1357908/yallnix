@@ -54,11 +54,16 @@ int KernelGetPid(void) {
     // return currentProcess->pid
 }
 
+// assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr){
-    // pagesNeeded = calculatePagesNeeded(addr)
-    // for each page in pageNeeded:
+	// if addr lower than brk:
+	// for each PTE *ptep in to-be-invalidated pages:
+		// invalidatePTE(ptep);
+	// if addr higher than brk:
+    // for each PTE *ptep in to-be-allocated pages:
         // grab pfn from FreePMList
-        // initializePTE(prot, pfn)
+        // validatePTE(ptep, prot, pfn);
+	
     // currentProcess->brk = addr
     // return ERROR if error else 0
 }
