@@ -4,7 +4,7 @@
     // implementation TBD
 
     // PCB_T * currentProcess
-    // PCB_T * idleProcess
+    // PCB_T * idleProcess -- should always be in readyMap
 
     // createProcess()
         // calls generateProcessID()
@@ -16,5 +16,5 @@
     // int processCount 
     
     // runningMap (HashMap: pid -> PCB_T *)
-    // readyMap (HashMap: pid -> PCB_T *)
+    // readyMap (HashMap: pid -> PCB_T *) 
     // blockedMap (HashMap: pid -> PCB_T *)
