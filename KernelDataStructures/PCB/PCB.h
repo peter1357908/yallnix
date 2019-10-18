@@ -1,8 +1,6 @@
 // PCB
-    // int pid
-    // void *region1Base
-    // void *region1Limit
-    // void *KernelStackBase
+    // int pid;
+    // void * region1PageTable;
     // void *brk;
     // UserContext *uctxt;
     // KernelContext *kctxt;

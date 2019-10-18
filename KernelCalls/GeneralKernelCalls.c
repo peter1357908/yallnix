@@ -66,6 +66,7 @@ int KernelBrk(void *addr){
 	
     // currentProcess->brk = addr
     // return ERROR if error else 0
+    // flush TLB!
 }
 
 int KernelDelay(int clock_ticks){

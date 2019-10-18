@@ -12,6 +12,10 @@ void handleTrapClock(UserContext *uctxt) {
     // Kernel_CvarBroadcast(clock_id)
 }
 
+void handleTrapIllegal(UserContext *uctxt) {
+    // do this
+}
+
 void handleTrapMemory(UserContext *uctxt) {
     // address = uctxt->addr
     // if address in Region 1 & in between stack & brk
@@ -39,4 +43,8 @@ void handleTtyTransmit(UserContext *uctxt) {
     // tty_idCanTransfer = True
     // Kernel_CvarSignal(cvar_tty_id)
     // release lock
+}
+
+void handleTrapDisk(UserContext *uctxt) {
+    // throw Error;
 }
