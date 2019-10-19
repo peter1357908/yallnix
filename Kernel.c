@@ -6,12 +6,6 @@
 void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
 
-/* during bootstrap, the hardware calls this function to tell us about the
- * data segment, before virtual memory initialization. It initializes the 
- * CurrKernelBrk before the first call to SetKernelBrk
- */
-
-// see manual page 46
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 	kernelDataStart = _KernelDataStart;
 	currKernelBrk = _KernelDataEnd;  // _KernelDataEnd is the lowest address NOT in use
@@ -81,6 +75,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
 
+	// initialize idle process
 	r1Base->pfn = (((int) DoIdle) & PAGEMASK);
 	uctxt->sp = r1Base;
 #ifdef LINUX
@@ -89,6 +84,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	uctxt->pc = DoIdle;
 
 	// initialize and run the first process (via scheduler, given uctxt)
+
+	return;
 }
 
 // see manual page 46
