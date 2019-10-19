@@ -18,7 +18,7 @@ struct pte * initializePageTable() {
 }
 
 // valid = 1 bit; prot = 3 bits; pfn = 24 bits
-void setPageTableEntry(struct pte *ptep, u_long valid, u_long prot, u_long pfn) {
+void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn) {
     ptep->valid = valid;
     ptep->prot = prot;
     ptep->pfn = pfn;

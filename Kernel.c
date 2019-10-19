@@ -1,7 +1,10 @@
 #include <hardware.h>
+#include <yalnix.h>
 #include "TrapHandlers/TrapHandlers.h"
 #include "KernelDataStructures/PageTable/PageTable.h"
 #include "KernelDataStructures/FrameList/FrameList.h"
+
+frame_t *FrameList;
 
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
@@ -35,22 +38,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
 
-	// initialize FreePMList
-	int numFrames = pmem_size / PAGESIZE;
-	frame_t *FrameList[numFrames];
-	frame_t *currFrame = FrameList;
-	void* frameAddr = PMEM_BASE;
-	int i;
-	for (i = 0; i < numFrames; i++) {
-		currFrame->addr = frameAddr;
-		if (((int) frameAddr < (int) currKernelBrk) || (KERNEL_STACK_BASE <= (int) frameAddr && KERNEL_STACK_LIMIT > (int) frameAddr)) {
-			currFrame->isFree = 0;
-		} else {
-			currFrame->isFree = 1;
-		}
-		frameAddr += PAGESIZE;
-		currFrame += sizeof(frame_t);
-	}
+	// initialize FreePMList (don't forget to free...?)
+	if (initFrame(FrameList, pmem_size, currKernelBrk) == ERROR) {
+		Halt();
+	}; 
 
 	// initialize the initial pagetable (think of this as for the initial idle process)
 	struct pte *pageTable = initializePageTable();
@@ -122,19 +113,15 @@ int SetKernelBrk(void *addr) {
 				int vpn = (currAddr & PAGEMASK);
 				int vpn0 = (VMEM_0_BASE & PAGEMASK); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
-				// grab free frame
-
-				// setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), )
-
+				frame_t * newFrame; 
+				if (getFrame(FrameList, newFrame) == ERROR) {
+					return ERROR;
+				};
+				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), ((u_long) newFrame & PAGEMASK));
 			}
 		}
-			// for each PTE *ptep in to-be-allocated pages:
-				// grab pfn from FreePMList
-				// validatePTE(ptep, prot, pfn);
-	
 	}
 
 	currKernelBrk = addr;
-	// return ERROR if error else 0
-    // if you change a page->frame mapping in the MMU, flush its pte!
+	return 0;
 }

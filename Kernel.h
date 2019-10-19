@@ -40,7 +40,6 @@ int itemCount; // use this for lock, cvar, and pipe ids
 void *kernelDataStart;  
 void *currKernelBrk;  
 
-
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) ;
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt);
