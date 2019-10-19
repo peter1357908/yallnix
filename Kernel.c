@@ -1,6 +1,7 @@
 #include <hardware.h>
 #include "TrapHandlers/TrapHandlers.h"
 #include "KernelDataStructures/PageTable/PageTable.h"
+#include "KernelDataStructures/FrameList/FrameList.h"
 
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
@@ -32,50 +33,53 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     interruptVectorArray[TRAP_DISK] = handleTrapDisk;
 
     // write REG_VECTOR_BASE
-    WriteRegister(REG_VECTOR_BASE, &interruptVectorArray);
+    WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
 
 	// initialize FreePMList
-	int remainingMemory = pmem_size - ((int) currKernelBrk - PMEM_BASE);
-	void * FreePMList[remainingMemory];
-	for (int i = 0; i < remainingMemory; i++) {
-	    FreePMList[i] = (void *) (currKernelBrk + i);
+	int numFrames = pmem_size / PAGESIZE;
+	frame_t *FrameList[numFrames];
+	frame_t *currFrame = FrameList;
+	void* frameAddr = PMEM_BASE;
+	int i;
+	for (i = 0; i < numFrames; i++) {
+		currFrame->addr = frameAddr;
+		if (((int) frameAddr < (int) currKernelBrk) || (KERNEL_STACK_BASE <= (int) frameAddr && KERNEL_STACK_LIMIT > (int) frameAddr)) {
+			currFrame->isFree = 0;
+		} else {
+			currFrame->isFree = 1;
+		}
+		frameAddr += PAGESIZE;
+		currFrame += sizeof(frame_t);
 	}
 
 	// initialize the initial pagetable (think of this as for the initial idle process)
 	struct pte *pageTable = initializePageTable();
 	struct pte *currentPte = pageTable;
 
+	int addr;
 	// virtualize PMEM up to kernelDataStart
-	for (int addr = PMEM_BASE; addr < (int) kernelDataStart; addr += PAGESIZE) {
-		currentPte->valid = 1;
-		currentPte->prot = (PROT_READ|PROT_EXEC);
-		currentPte->pfn = (addr & PAGEMASK);
+	for (addr = PMEM_BASE; addr < (int) kernelDataStart; addr += PAGESIZE) {
+		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_EXEC ), (addr & PAGEMASK));
 		currentPte += PAGESIZE;
 	}
 
 	// virtualize kernelDataStart up to currKernelBrk
-	for (int addr = kernelDataStart; addr < (int) currKernelBrk; addr += PAGESIZE) {
-		currentPte->valid = 1;
-		currentPte->prot = (PROT_READ|PROT_WRITE);
-		currentPte->pfn = (addr & PAGEMASK);
+	for (addr = kernelDataStart; addr < (int) currKernelBrk; addr += PAGESIZE) {
+		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (addr & PAGEMASK));
 		currentPte += PAGESIZE;
 	}
 
 	// set MMU registers 
-	struct pte * r0Base = pageTable;
-	struct pte * r0Limit = pageTable + MAX_PT_LEN;
-	struct pte * r1Base = r0Limit;
-	struct pte * r1Limit = r1Base + MAX_PT_LEN;
-
-	WriteRegister(REG_PTBR0, (unsigned int) r0Base);
-	WriteRegister(REG_PTLR0, (unsigned int) r0Limit);
-	WriteRegister(REG_PTBR1, (unsigned int) r1Base);
-	WriteRegister(REG_PTLR1, (unsigned int) r1Limit);
+	WriteRegister(REG_PTBR0, (unsigned int)  pageTable);
+	WriteRegister(REG_PTLR0, (unsigned int) pageTable + MAX_PT_LEN);
+	WriteRegister(REG_PTBR1, (unsigned int) pageTable + MAX_PT_LEN);
+	WriteRegister(REG_PTLR1, (unsigned int) pageTable + 2 * MAX_PT_LEN);
 
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	// initialize idle process
+	struct pte * r1Base = ReadRegister(REG_PTBR1);
 	r1Base->pfn = (((int) DoIdle) & PAGEMASK);
 	uctxt->sp = r1Base;
 #ifdef LINUX
@@ -95,15 +99,41 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
  */
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
+
+	// update page table if we're in VMM
 	if (isVM) {
-		// if addr lower than currKernelBrk:
-			// for each PTE *ptep in to-be-invalidated pages:
-				// invalidatePTE(ptep);
-		// if addr higher than currKernelBrk:
+		struct pte * pageTable = ReadRegister(REG_PTBR0);
+		struct pte currPte;
+		int currAddr;
+
+		// if addr lower than currKernelBrk, invalidate pages
+		if ((int) addr < (int) currKernelBrk) {
+			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE ) {
+				int vpn = (currAddr & PAGEMASK);
+				int vpn0 = (VMEM_0_BASE & PAGEMASK); // first page in VMEM_0
+				currPte = pageTable[vpn-vpn0];
+				invalidatePageTableEntry(&currPte);
+			}
+		}
+	
+		// if addr higher than currKernelBrk, allocate new valid pages
+		else {
+			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
+				int vpn = (currAddr & PAGEMASK);
+				int vpn0 = (VMEM_0_BASE & PAGEMASK); // first page in VMEM_0
+				currPte = pageTable[vpn-vpn0];
+				// grab free frame
+
+				// setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), )
+
+			}
+		}
 			// for each PTE *ptep in to-be-allocated pages:
 				// grab pfn from FreePMList
 				// validatePTE(ptep, prot, pfn);
+	
 	}
+
 	currKernelBrk = addr;
 	// return ERROR if error else 0
     // if you change a page->frame mapping in the MMU, flush its pte!

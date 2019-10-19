@@ -30,7 +30,7 @@ KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS)/TrapHandlers.c $(KERNEL_DATA_STRUCTURES)
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
 KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS)/TrapHandlers.o $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.o
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(TRAP_HANDLERS)/TrapHandlers.h $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.h $(YALNIX_STUFF)/*.h
+KERNEL_INCS = Kernel.h $(TRAP_HANDLERS)/TrapHandlers.h $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.h 
 
 
 #List all user programs here.

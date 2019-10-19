@@ -1,6 +1,5 @@
 // PCB
     // int pid;
-    // void * region1PageTable;
     // void *brk;
     // UserContext *uctxt;
     // KernelContext *kctxt;
