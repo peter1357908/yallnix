@@ -1,6 +1,6 @@
 #include <hardware.h>
-#include <TrapHandlers.h>
-#include <PageTable.h>
+#include "TrapHandlers/TrapHandlers.h"
+#include "KernelDataStructures/PageTable/PageTable.h"
 
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
