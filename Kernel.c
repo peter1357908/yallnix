@@ -55,7 +55,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	}
 
 	// virtualize kernelDataStart up to currKernelBrk
-	for (addr = kernelDataStart; addr < (int) currKernelBrk; addr += PAGESIZE) {
+	for (addr = (int) kernelDataStart; addr < (int) currKernelBrk; addr += PAGESIZE) {
 		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (addr & PAGEMASK));
 		currentPte += PAGESIZE;
 	}
@@ -70,7 +70,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	// initialize idle process
-	struct pte * r1Base = ReadRegister(REG_PTBR1);
+	struct pte * r1Base = (struct pte *) ReadRegister(REG_PTBR1);
 	r1Base->pfn = (((int) DoIdle) & PAGEMASK);
 	uctxt->sp = r1Base;
 #ifdef LINUX
@@ -93,7 +93,7 @@ int SetKernelBrk(void *addr) {
 
 	// update page table if we're in VMM
 	if (isVM) {
-		struct pte * pageTable = ReadRegister(REG_PTBR0);
+		struct pte * pageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte currPte;
 		int currAddr;
 

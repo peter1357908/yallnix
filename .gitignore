@@ -1,2 +1,5 @@
 .vscode
 YalnixStuff
+*.o
+TTYLOG*
+DISK
