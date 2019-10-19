@@ -1,5 +1,5 @@
 void * initializePageTable(void);
 
-bool chunkValidityCheck(void * base, void * limit, bool validity);
+// bool chunkValidityCheck(void * base, void * limit, bool validity);
 
-void deletePageTable(void);
+// void deletePageTable(void);
