@@ -6,13 +6,14 @@
 
 struct pte * initializePageTable() {
 	// NOTE: malloc appears to return an int, so we're casting it to a pointer
+	TracePrintf(2, "\n initializePageTable() allocating %d in memory\n", sizeof(struct pte) * NUM_VPN);
     struct pte *pageTable = (struct pte *) malloc(sizeof(struct pte) * NUM_VPN);
 	struct pte *ptep = pageTable;
 	int i;
 	for (i = MIN_VPN; i < NUM_VPN; i++) {
 		ptep->valid = 0;
 		ptep->prot = PROT_NONE;
-		ptep += sizeof(struct pte);
+		ptep++; //= sizeof(struct pte);
 	}
     return pageTable;
 }

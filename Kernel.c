@@ -48,30 +48,37 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	struct pte *currentPte = pageTable;
 
 	int addr;
-	// virtualize PMEM up to kernelDataStart
-	for (addr = PMEM_BASE; addr < (int) kernelDataStart; addr += PAGESIZE) {
-		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_EXEC ), (addr & PAGEMASK));
-		currentPte += PAGESIZE;
+	// virtualize PMEM up to last page before kernelDataStart
+	for (addr = PMEM_BASE; addr < (int) currKernelBrk; addr += PAGESIZE) {
+		u_long prot;
+
+		// r/e for txt
+		if ((int) addr + PAGESIZE <= (int) kernelDataStart) {
+			prot = (PROT_READ|PROT_EXEC);
+		} 
+		// r/w for data/heap
+		else {
+			prot = (PROT_READ|PROT_WRITE);
+		}
+		
+		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
+		currentPte += 1;
 	}
 
-	// virtualize kernelDataStart up to currKernelBrk
-	for (addr = (int) kernelDataStart; addr < (int) currKernelBrk; addr += PAGESIZE) {
-		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (addr & PAGEMASK));
-		currentPte += PAGESIZE;
-	}
+	// TODO: virtualize Kernel Stack
 
 	// set MMU registers 
-	WriteRegister(REG_PTBR0, (unsigned int)  pageTable);
-	WriteRegister(REG_PTLR0, (unsigned int) pageTable + MAX_PT_LEN);
-	WriteRegister(REG_PTBR1, (unsigned int) pageTable + MAX_PT_LEN);
-	WriteRegister(REG_PTLR1, (unsigned int) pageTable + 2 * MAX_PT_LEN);
+	WriteRegister(REG_PTBR0, (unsigned int) pageTable);
+	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
+	WriteRegister(REG_PTBR1, (unsigned int) (pageTable + (MAX_PT_LEN * sizeof(struct pte)))); 
+	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	// initialize idle process
 	struct pte * r1Base = (struct pte *) ReadRegister(REG_PTBR1);
-	r1Base->pfn = (((int) DoIdle) & PAGEMASK);
+	r1Base->pfn = (((int) DoIdle)>>PAGESHIFT);
 	uctxt->sp = r1Base;
 #ifdef LINUX
 	uctxt->ebp = r1Base;
@@ -91,8 +98,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
 
+	TracePrintf(2, "\n\n SetKernelBrk called with addr = %p, isVM = %d\n", addr, isVM);
+
 	// update page table if we're in VMM
-	if (isVM) {
+	if (isVM == 1) {
 		struct pte * pageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte currPte;
 		int currAddr;
@@ -100,8 +109,8 @@ int SetKernelBrk(void *addr) {
 		// if addr lower than currKernelBrk, invalidate pages
 		if ((int) addr < (int) currKernelBrk) {
 			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE ) {
-				int vpn = (currAddr & PAGEMASK);
-				int vpn0 = (VMEM_0_BASE & PAGEMASK); // first page in VMEM_0
+				int vpn = (currAddr>>PAGESHIFT);
+				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
 				invalidatePageTableEntry(&currPte);
 			}
@@ -110,14 +119,14 @@ int SetKernelBrk(void *addr) {
 		// if addr higher than currKernelBrk, allocate new valid pages
 		else {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
-				int vpn = (currAddr & PAGEMASK);
-				int vpn0 = (VMEM_0_BASE & PAGEMASK); // first page in VMEM_0
+				int vpn = (currAddr>>PAGESHIFT);
+				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
 				frame_t * newFrame; 
 				if (getFrame(FrameList, newFrame) == ERROR) {
 					return ERROR;
 				};
-				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), ((u_long) newFrame & PAGEMASK));
+				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), ((u_long) newFrame>>PAGESHIFT));
 			}
 		}
 	}
