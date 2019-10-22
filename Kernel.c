@@ -48,24 +48,31 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	struct pte *currentPte = pageTable;
 
 	int addr;
-	// virtualize PMEM up to last page before kernelDataStart
-	for (addr = PMEM_BASE; addr < (int) currKernelBrk; addr += PAGESIZE) {
+	// virtualize PMEM from PMEM_BASE to currKernelBrk
+	for (addr = PMEM_BASE; addr < KERNEL_STACK_LIMIT; addr += PAGESIZE) {
 		u_long prot;
 
-		// r/e for txt; assuming that kernelDataStart is at the beginning of a page...
+		// r/e for txt; the last segment before each cutoff may be an incomplete page (why does the code below work?)
 		if (addr + PAGESIZE <= (int) kernelDataStart) {
 			prot = (PROT_READ|PROT_EXEC);
 		} 
 		// r/w for data/heap
-		else {
+		else if (addr + PAGESIZE <= (int) currKernelBrk) {
 			prot = (PROT_READ|PROT_WRITE);
+		}
+		else if (KERNEL_STACK_BASE < addr + PAGESIZE) {
+			prot = (PROT_READ|PROT_WRITE);
+		}
+		// unused page; skip
+		else {
+			currentPte++;
+			continue;
 		}
 		
 		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
 		currentPte++;
 	}
-
-	// TODO: virtualize Kernel Stack
+	
 
 	// set MMU registers 
 	WriteRegister(REG_PTBR0, (unsigned int) pageTable);
