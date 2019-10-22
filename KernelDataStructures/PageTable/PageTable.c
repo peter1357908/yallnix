@@ -13,7 +13,8 @@ struct pte * initializePageTable() {
 	for (i = MIN_VPN; i < NUM_VPN; i++) {
 		ptep->valid = 0;
 		ptep->prot = PROT_NONE;
-		ptep++; //= sizeof(struct pte);
+		ptep->pfn = 0;
+		ptep ++;
 	}
     return pageTable;
 }

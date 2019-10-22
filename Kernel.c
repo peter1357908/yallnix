@@ -62,10 +62,15 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		}
 		
 		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
-		currentPte += 1;
+		currentPte++;
 	}
 
-	// TODO: virtualize Kernel Stack
+	// virtualize KernelStack
+	currentPte = pageTable + (NUM_VPN / 2) - (KERNEL_STACK_MAXSIZE / PAGESIZE);
+	for (addr = KERNEL_STACK_BASE; addr < (KERNEL_STACK_LIMIT); addr += PAGESIZE) {
+		setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (addr>>PAGESHIFT));
+		currentPte++;
+	}
 
 	// set MMU registers 
 	WriteRegister(REG_PTBR0, (unsigned int) pageTable);
@@ -77,14 +82,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	// initialize idle process
-	struct pte * r1Base = (struct pte *) ReadRegister(REG_PTBR1);
-	r1Base->pfn = (((int) DoIdle)>>PAGESHIFT);
-	uctxt->sp = r1Base;
-#ifdef LINUX
-	uctxt->ebp = r1Base;
-#endif
-	uctxt->pc = DoIdle;
-
+// 	struct pte * r1Base = (struct pte *) ReadRegister(REG_PTBR1);
+// 	r1Base->pfn = (((int) DoIdle)>>PAGESHIFT);
+// 	uctxt->sp = r1Base;
+// #ifdef LINUX
+// 	uctxt->ebp = r1Base;
+// #endif
+// 	uctxt->pc = DoIdle;
+ 
 	// initialize and run the first process (via scheduler, given uctxt)
 
 	return;
