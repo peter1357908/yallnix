@@ -38,7 +38,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
 
-	// initialize FreePMList (don't forget to free...?)
+	// initialize FreePMList (are we supposed to free it somewhere?)
 	if (initFrame(FrameList, pmem_size, currKernelBrk) == ERROR) {
 		Halt();
 	}; 
@@ -52,8 +52,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	for (addr = PMEM_BASE; addr < (int) currKernelBrk; addr += PAGESIZE) {
 		u_long prot;
 
-		// r/e for txt
-		if ((int) addr + PAGESIZE <= (int) kernelDataStart) {
+		// r/e for txt; assuming that kernelDataStart is at the beginning of a page...
+		if (addr + PAGESIZE <= (int) kernelDataStart) {
 			prot = (PROT_READ|PROT_EXEC);
 		} 
 		// r/w for data/heap
@@ -62,7 +62,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		}
 		
 		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
-		currentPte += 1;
+		currentPte++;
 	}
 
 	// TODO: virtualize Kernel Stack
