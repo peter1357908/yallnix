@@ -3,7 +3,7 @@
 #include <yalnix.h>
 #include <hardware.h>
 
-int initFrame(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
+int initFrameList(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
    	int numFrames = pmem_size / PAGESIZE;
 	FrameList = malloc(numFrames * sizeof(frame_t));
     if (FrameList == NULL) {
@@ -20,7 +20,7 @@ int initFrame(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
 			currFrame->isFree = 1;
 		}
 		frameAddr += PAGESIZE;
-		currFrame += sizeof(frame_t);
+		currFrame++;
 	}
     return 0;
 }
@@ -33,7 +33,7 @@ int getFrame(frame_t * FrameList, frame_t * frame) {
         if (i >= totalFrames) {
             return ERROR;
         }
-        currFrame += sizeof(frame_t);
+        currFrame++;
         i++;
     }
     currFrame->isFree = 0;

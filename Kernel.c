@@ -25,7 +25,7 @@ void DoIdle(void) {
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	// initialize Interrupt Vector Array 
-    void * interruptVectorArray[TRAP_VECTOR_SIZE];
+    void *interruptVectorArray[TRAP_VECTOR_SIZE];
     interruptVectorArray[TRAP_KERNEL] = handleTrapKernel;
     interruptVectorArray[TRAP_CLOCK] = handleTrapClock;
 	interruptVectorArray[TRAP_ILLEGAL] = handleTrapIllegal;
@@ -38,10 +38,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
 
-	// initialize FreePMList (are we supposed to free it somewhere?)
-	if (initFrame(FrameList, pmem_size, currKernelBrk) == ERROR) {
+	// initialize FrameList (are we supposed to free it somewhere?)
+	if (initFrameList(FrameList, pmem_size, currKernelBrk) == ERROR) {
 		Halt();
-	}; 
+	}
 
 	// initialize the initial pagetable (think of this as for the initial idle process)
 	struct pte *pageTable = initializePageTable();
@@ -52,7 +52,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	for (addr = PMEM_BASE; addr < KERNEL_STACK_LIMIT; addr += PAGESIZE) {
 		u_long prot;
 
-		// r/e for txt; the last segment before each cutoff may be an incomplete page (why does the code below work?)
+		// r/e for text; the last segment before each cutoff may be an incomplete page (why does the code below work?)
 		if (addr + PAGESIZE <= (int) kernelDataStart) {
 			prot = (PROT_READ|PROT_EXEC);
 		} 
@@ -82,18 +82,41 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
-
-	// initialize idle process
-	struct pte * r1Base = (struct pte *) ReadRegister(REG_PTBR1);
-	r1Base->pfn = (((int) DoIdle)>>PAGESHIFT);
-	uctxt->sp = r1Base;
+	
+	// initialize idle process 
+	// currently a pseudo-process that's really just a function, so the following
+	// is an extremely primitive version of LoadProgram() for checkpoint 2 only!
+	
+	// initialize the userland stack, with one page of memory at the very top
+	struct pte *r1StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR1)) + MAX_PT_LEN - 1;
+	void *r1StackBaseFrame;
+	if (getFrame(FrameList, r1StackBaseFrame) == ERROR) {
+		return Halt();
+	}
+	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) r1StackBaseFrame>>PAGESHIFT);
+	
+	// initialize the userland text
+	struct pte *r1TextBasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
+	// make it point to the physical address of DoIdle(), which happens to be the same
+	// as its virtual address given how we initialized our virtual memory
+	setPageTableEntry(r1TextBasePtep, 1, PROT_READ|PROT_EXEC, ((int) DoIdle)>>PAGESHIFT);
+	
+	TracePrintf(2, "finished user address space initialization\n");
+	
+	// now populate the user context appropriately to fake a process...
+	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);  // stored at the base is an address to the actual function in user text
+	void *r1TextBase = (void *) (VMEM_1_BASE);
+	*r1StackBase = r1TextBase;
+	
+	uctxt->pc = r1TextBase;  // which now actually contains DoIdle
+	uctxt->sp = r1StackBase;
 #ifdef LINUX
-	uctxt->ebp = r1Base;
+	uctxt->sp = r1StackBase;
 #endif
-	uctxt->pc = DoIdle;
 
 	// initialize and run the first process (via scheduler, given uctxt)
 
+	TracePrintf(2, "about to exit KernelStart\n");
 	return;
 }
 
@@ -105,11 +128,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
 
-	TracePrintf(2, "\n\n SetKernelBrk called with addr = %p, isVM = %d\n", addr, isVM);
-
 	// update page table if we're in VMM
 	if (isVM == 1) {
-		struct pte * pageTable = (struct pte *) ReadRegister(REG_PTBR0);
+		struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte currPte;
 		int currAddr;
 
@@ -129,11 +150,11 @@ int SetKernelBrk(void *addr) {
 				int vpn = (currAddr>>PAGESHIFT);
 				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
-				frame_t * newFrame; 
+				frame_t *newFrame; 
 				if (getFrame(FrameList, newFrame) == ERROR) {
 					return ERROR;
-				};
-				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), ((u_long) newFrame>>PAGESHIFT));
+				}
+				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), (int) newFrame>>PAGESHIFT);
 			}
 		}
 	}
