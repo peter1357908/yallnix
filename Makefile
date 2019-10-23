@@ -26,11 +26,11 @@ KERNEL_DATA_STRUCTURES = KernelDataStructures
 YALNIX_STUFFF = YalnixStuff
 
 #List all kernel source files here.  
-KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS)/*.c $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.c $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
+KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS)/$(TRAP_HANDLERS).c $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.c $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS)/*.o $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.o $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
+KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS)/$(TRAP_HANDLERS).o $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.o $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(TRAP_HANDLERS)/*.h $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.h $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
+KERNEL_INCS = Kernel.h $(TRAP_HANDLERS)/$(TRAP_HANDLERS).h $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.h $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c
 
 
 #List all user programs here.
