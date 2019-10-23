@@ -1,5 +1,6 @@
 #include <hardware.h>
 #include <yalnix.h>
+#include <string.h>
 #include "TrapHandlers/TrapHandlers.h"
 #include "KernelDataStructures/PageTable/PageTable.h"
 #include "KernelDataStructures/FrameList/FrameList.h"
@@ -99,15 +100,23 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	// initialize the userland text
 	struct pte *r1TextBasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
-	// make it point to the physical address of DoIdle(), which happens to be the same
-	// as its virtual address given how we initialized our virtual memory
-	setPageTableEntry(r1TextBasePtep, 1, PROT_READ|PROT_EXEC, ((int) DoIdle)>>PAGESHIFT);
+	// since mapping user vpn to kernel pfn is forbidden, we have to do a memmove() to
+	// deep-copy the frame containing DoIdle into a new pfn mapped from user vpn
+	void *r1TextBaseFrame;
+	if (getFrame(FrameList, numFrames, r1TextBaseFrame) == ERROR) {
+		return Halt();
+	}
+	setPageTableEntry(r1TextBasePtep, 1, PROT_READ|PROT_EXEC, (int) r1TextBaseFrame>>PAGESHIFT);
 	
-	// now populate the user context appropriately to fake a process...
 	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);	
 	void *r1TextBase = (void *) VMEM_1_BASE;  // points to the beginning of the page containing DoIdle
 	void *r0DoIdle = DoIdle;
 	void *r1DoIdle = (void *) ((int)r1TextBase + (((int) r0DoIdle) & PAGEOFFSET));  // points to the address of DoIdle in r1
+	
+	// deep-copy the frame containing DoIdle, assuming that it's contained in one frame
+	// otherwise, we could even copy the whole text... in either case, it's ugly
+	
+	memmove(r1TextBase, (void *) DOWN_TO_PAGE((int) r0DoIdle), PAGESIZE);
 	
 	TracePrintf(1, "r1StackBase = %p\n", r1StackBase);
 	TracePrintf(1, "r1TextBase = %p\n", r1TextBase);
@@ -118,11 +127,11 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	TracePrintf(1, "*r1StackBase = %p\n", *r1StackBase);
 	
-	uctxt->pc = r1DoIdle;  // which now actually contains DoIdle
+	uctxt->pc = r1DoIdle;
 	
 	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
 	
-	uctxt->sp = r1StackBase;
+	uctxt->sp = r1StackBase;  // which contains a pointer to DoIdle
 	
 	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
 #ifdef LINUX
