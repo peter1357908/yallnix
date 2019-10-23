@@ -122,11 +122,11 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
 	
-	uctxt->sp = *r1StackBase;
+	uctxt->sp = r1StackBase;
 	
 	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
 #ifdef LINUX
-	uctxt->sp = *r1StackBase;
+	uctxt->sp = r1StackBase;
 #endif
 
 	// initialize and run the first process (via scheduler, given uctxt)
