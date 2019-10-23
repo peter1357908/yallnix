@@ -97,27 +97,36 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	}
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) r1StackBaseFrame>>PAGESHIFT);
 	
-	TracePrintf(1, "100\n");
-	
 	// initialize the userland text
 	struct pte *r1TextBasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
 	// make it point to the physical address of DoIdle(), which happens to be the same
 	// as its virtual address given how we initialized our virtual memory
 	setPageTableEntry(r1TextBasePtep, 1, PROT_READ|PROT_EXEC, ((int) DoIdle)>>PAGESHIFT);
 	
-	TracePrintf(1, "108\n");
-	
 	// now populate the user context appropriately to fake a process...
-	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);  // stored at the base is an address to the actual function in user text
-	void *r1TextBase = (void *) (VMEM_1_BASE);
-	*r1StackBase = r1TextBase;
+	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);	
+	void *r1TextBase = (void *) VMEM_1_BASE;  // points to the beginning of the page containing DoIdle
+	void *r0DoIdle = DoIdle;
+	void *r1DoIdle = (void *) ((int)r1TextBase + (((int) r0DoIdle) & PAGEOFFSET));  // points to the address of DoIdle in r1
 	
-	TracePrintf(1, "115\n");
+	TracePrintf(1, "r1StackBase = %p\n", r1StackBase);
+	TracePrintf(1, "r1TextBase = %p\n", r1TextBase);
+	TracePrintf(1, "r0DoIdle = %p\n", r0DoIdle);
+	TracePrintf(1, "r1DoIdle = %p\n", r1DoIdle);
 	
-	uctxt->pc = r1TextBase;  // which now actually contains DoIdle
-	uctxt->sp = r1StackBase;
+	*r1StackBase = r1DoIdle;
+	
+	TracePrintf(1, "*r1StackBase = %p\n", *r1StackBase);
+	
+	uctxt->pc = r1DoIdle;  // which now actually contains DoIdle
+	
+	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
+	
+	uctxt->sp = *r1StackBase;
+	
+	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
 #ifdef LINUX
-	uctxt->sp = r1StackBase;
+	uctxt->sp = *r1StackBase;
 #endif
 
 	// initialize and run the first process (via scheduler, given uctxt)

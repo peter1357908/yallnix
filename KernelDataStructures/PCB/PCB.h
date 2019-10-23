@@ -2,7 +2,6 @@
 
 typedef struct PCB {
     int pid;
-	void *currStackBase;
     void *brk;
     UserContext *uctxt;
     KernelContext *kctxt;
