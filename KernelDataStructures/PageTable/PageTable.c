@@ -4,7 +4,7 @@
 // PageTable
     // array of PTEs (of a fixed number)
 
-struct pte * initializePageTable() {
+struct pte *initializePageTable() {
 	// NOTE: malloc appears to return an int, so we're casting it to a pointer
     struct pte *pageTable = (struct pte *) malloc(sizeof(struct pte) * NUM_VPN);
 	struct pte *ptep = pageTable;

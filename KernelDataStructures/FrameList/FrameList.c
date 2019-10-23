@@ -3,13 +3,13 @@
 #include <yalnix.h>
 #include <hardware.h>
 
-int initFrameList(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
-   	int numFrames = pmem_size / PAGESIZE;
-	FrameList = malloc(numFrames * sizeof(frame_t));
-    if (FrameList == NULL) {
+int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk) {	
+	*FrameListp = malloc(numFrames * sizeof(frame_t));
+    if (*FrameListp == NULL) {
         return ERROR;
     }
-	frame_t *currFrame = FrameList;
+	
+	frame_t *currFrame = *FrameListp;
 	void* frameAddr = PMEM_BASE;
 	int i;
 	for (i = 0; i < numFrames; i++) {
@@ -25,12 +25,15 @@ int initFrameList(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
     return 0;
 }
 
-int getFrame(frame_t * FrameList, frame_t * frame) {
+int getFrame(frame_t *FrameList, int numFrames, frame_t *frame) {
+    if (FrameList == NULL) {
+        return ERROR;
+    }
+	
     frame_t *currFrame = FrameList;
-    int i = 0;
-    int totalFrames = sizeof(FrameList) / sizeof(frame_t);
+	int i = 0;
     while (!currFrame->isFree) {
-        if (i >= totalFrames) {
+        if (i >= numFrames) {
             return ERROR;
         }
         currFrame++;

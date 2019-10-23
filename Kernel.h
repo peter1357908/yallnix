@@ -37,6 +37,9 @@ int itemCount; // use this for lock, cvar, and pipe ids
 
 #include <hardware.h>
 
+frame_t *FrameList;
+int numFrames;
+
 void *kernelDataStart;  
 void *currKernelBrk;  
 

@@ -5,6 +5,7 @@
 #include "KernelDataStructures/FrameList/FrameList.h"
 
 frame_t *FrameList;
+int numFrames;
 
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
@@ -39,7 +40,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
 
 	// initialize FrameList (are we supposed to free it somewhere?)
-	if (initFrameList(FrameList, pmem_size, currKernelBrk) == ERROR) {
+	numFrames = pmem_size / PAGESIZE;
+	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
 	}
 
@@ -90,10 +92,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// initialize the userland stack, with one page of memory at the very top
 	struct pte *r1StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR1)) + MAX_PT_LEN - 1;
 	void *r1StackBaseFrame;
-	if (getFrame(FrameList, r1StackBaseFrame) == ERROR) {
+	if (getFrame(FrameList, numFrames, r1StackBaseFrame) == ERROR) {
 		return Halt();
 	}
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) r1StackBaseFrame>>PAGESHIFT);
+	
+	TracePrintf(1, "100\n");
 	
 	// initialize the userland text
 	struct pte *r1TextBasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
@@ -101,12 +105,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// as its virtual address given how we initialized our virtual memory
 	setPageTableEntry(r1TextBasePtep, 1, PROT_READ|PROT_EXEC, ((int) DoIdle)>>PAGESHIFT);
 	
-	TracePrintf(2, "finished user address space initialization\n");
+	TracePrintf(1, "108\n");
 	
 	// now populate the user context appropriately to fake a process...
 	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);  // stored at the base is an address to the actual function in user text
 	void *r1TextBase = (void *) (VMEM_1_BASE);
 	*r1StackBase = r1TextBase;
+	
+	TracePrintf(1, "115\n");
 	
 	uctxt->pc = r1TextBase;  // which now actually contains DoIdle
 	uctxt->sp = r1StackBase;
@@ -115,8 +121,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 #endif
 
 	// initialize and run the first process (via scheduler, given uctxt)
-
-	TracePrintf(2, "about to exit KernelStart\n");
+	
 	return;
 }
 
@@ -127,8 +132,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
  */
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
-
-	// update page table if we're in VMM
+	
+	// update page table if we're in VM
 	if (isVM == 1) {
 		struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte currPte;
@@ -144,16 +149,17 @@ int SetKernelBrk(void *addr) {
 			}
 		}
 	
-		// if addr higher than currKernelBrk, allocate new valid pages
+		// if addr higher than currKernelBrk, valid pages and allocate frames accordingly
 		else {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
-				frame_t *newFrame; 
-				if (getFrame(FrameList, newFrame) == ERROR) {
+				frame_t *newFrame;
+				if (getFrame(FrameList, numFrames, newFrame) == ERROR) {
 					return ERROR;
 				}
+				
 				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), (int) newFrame>>PAGESHIFT);
 			}
 		}
