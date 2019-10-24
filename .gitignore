@@ -1,8 +1,10 @@
 .vscode
 YalnixStuff
-*.o
+**/*.o
 TTYLOG*
 SCRATCH
 yalnix
 DISK
 .gdbinit
+TRACE
+PETERSUCKS*

@@ -3,13 +3,13 @@
 #include <yalnix.h>
 #include <hardware.h>
 
-int initFrame(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
-   	int numFrames = pmem_size / PAGESIZE;
-	FrameList = malloc(numFrames * sizeof(frame_t));
-    if (FrameList == NULL) {
+int initFrameList(frame_t ** FrameListp, int numFrames, void * currKernelBrk) {	
+	*FrameListp = malloc(numFrames * sizeof(frame_t));
+    if (*FrameListp == NULL) {
         return ERROR;
     }
-	frame_t *currFrame = FrameList;
+	
+	frame_t *currFrame = *FrameListp;
 	void* frameAddr = PMEM_BASE;
 	int i;
 	for (i = 0; i < numFrames; i++) {
@@ -20,24 +20,27 @@ int initFrame(frame_t *FrameList, int pmem_size, void * currKernelBrk) {
 			currFrame->isFree = 1;
 		}
 		frameAddr += PAGESIZE;
-		currFrame += sizeof(frame_t);
+		currFrame++;
 	}
     return 0;
 }
 
-int getFrame(frame_t * FrameList, frame_t * frame) {
+int getFrame(frame_t *FrameList, int numFrames, frame_t ** frame) {
+    if (FrameList == NULL) {
+        return ERROR;
+    }
+	
     frame_t *currFrame = FrameList;
-    int i = 0;
-    int totalFrames = sizeof(FrameList) / sizeof(frame_t);
-    while (!currFrame->isFree) {
-        if (i >= totalFrames) {
+	int i = 0;
+    while (currFrame->isFree == 0) {
+        if (i >= numFrames) {
             return ERROR;
         }
-        currFrame += sizeof(frame_t);
+        currFrame++;
         i++;
     }
     currFrame->isFree = 0;
-    frame = currFrame;
+    *frame = currFrame;
     return 0;
 }
 

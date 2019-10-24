@@ -17,8 +17,11 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
-    // address = uctxt->addr
+    void *addr = uctxt->addr;
+	void *sp = uctxt->sp;
+	
     // if address in Region 1 & in between stack & brk
+	// if ((int) addr < (int) sp && (int) )
         // grow the stack to cover this address
         // (leave at least 1 page unmapped with valid bit == 0, 
         //  so that we don't silently overlap into heap without triggering TRAP_MEMORY)
