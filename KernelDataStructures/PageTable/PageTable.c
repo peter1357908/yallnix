@@ -13,7 +13,6 @@ struct pte *initializePageTable() {
 		ptep->valid = 0;
 		ptep->prot = PROT_NONE;
 		ptep->pfn = 0;
-		ptep++;
 	}
     return pageTable;
 }
@@ -24,12 +23,6 @@ void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn)
     ptep->prot = prot;
     ptep->pfn = pfn;
 }
-
-// struct pte *getPte(struct pte *pageTable, void *addr) {
-// 	int vpn = ((int) addr>>PAGESHIFT);
-// 	int vpn0 = (VMEM_0_BASE>>PAGESHIFT); 
-// 	return &(pageTable[vpn-vpn0]);
-// }
 
 void invalidatePageTableEntry(struct pte *ptep) {
 	ptep->valid = 0;

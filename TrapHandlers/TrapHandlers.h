@@ -15,3 +15,5 @@ void handleTtyReceive(UserContext *uctxt);
 void handleTtyTransmit(UserContext *uctxt);
 
 void handleTrapDisk(UserContext *uctxt);
+
+void handleNothing(UserContext *uctxt);

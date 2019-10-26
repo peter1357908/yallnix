@@ -14,6 +14,14 @@ int numFrames;
 void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
 
+void DoIdle() {
+	return;
+	// while(1) {
+	// 	TracePrintf(1, "DoIdle\n");
+	// 	Pause();
+	// }
+}
+
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 	kernelDataStart = _KernelDataStart;
 	currKernelBrk = _KernelDataEnd;  // _KernelDataEnd is the lowest address NOT in use
@@ -31,9 +39,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     interruptVectorArray[TRAP_TTY_RECEIVE] = handleTtyReceive;
     interruptVectorArray[TRAP_TTY_TRANSMIT] = handleTtyTransmit;
     interruptVectorArray[TRAP_DISK] = handleTrapDisk;
+	
+	int i;
+	for (i = 8; i < TRAP_VECTOR_SIZE; i++) {
+		interruptVectorArray[i] = handleNothing;
+	}
 
     // write REG_VECTOR_BASE
-    WriteRegister(REG_VECTOR_BASE, (unsigned int) &interruptVectorArray);
+    WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
 
 	// initialize the initial pagetable (think of this as for the initial idle process)
 	struct pte *pageTable = initializePageTable();
@@ -86,41 +99,44 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 	// initialize the userland stack, with one page of memory at the very top
 	struct pte *r1BasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
-	struct pte * r1StackBasePtep = r1BasePtep + MAX_PT_LEN - 1;
+	struct pte *r1StackBasePtep = r1BasePtep + MAX_PT_LEN - 1;
 	frame_t *r1StackBaseFrame;
 	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
 		Halt();
 	}
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
 		
-	// 	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);	
-	// 	void *r0DoIdle = DoIdle;
-		
-	// 	// TracePrintf(1, "r1StackBase = %p\n", r1StackBase);
-	// 	// TracePrintf(1, "r0DoIdle = %p\n", r0DoIdle);
-		
-	// 	// TracePrintf(1, "*r1StackBase = %p\n", *r1StackBase);
-		
-	// 	uctxt->pc = r0DoIdle;
-		
-	// 	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
-		
-	// 	// *r1StackBase = r0DoIdle;
+	// copied from LoadProgram.c
+	int size = 0;
+	int argcount = 0;
+	char *cp = ((char *)VMEM_1_LIMIT) - size;
 
-	// 	uctxt->sp = (void *) r1StackBase;
-		
-	// 	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
-	// #ifdef LINUX
-	// 	uctxt->sp = (void *) r1StackBase;
-	// #endif
+	char **cpp = (char **)
+		(((int)cp - 
+		((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) 
+		& ~7);
+
+  	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
+
+	uctxt->pc = DoIdle;
+	uctxt->sp = cp2;
+
+#ifdef LINUX
+	uctxt->ebp = cp2;
+#endif
 
 	// initialize and run the first process (via scheduler, given uctxt)
 	
-	PCB_t *idlePCB;
-	if (initProcess(&idlePCB, uctxt) == ERROR) {
-		Halt();
-	}
-	LoadProgram("idle", cmd_args, idlePCB);
+
+	// PCB_t *idlePCB;
+	// if (initProcess(&idlePCB, uctxt) == ERROR) {
+	// 	Halt();
+	// }
+	// WriteRegister(REG_PTBR0, (unsigned int) idlePCB->pagetable);
+	// WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
+	// WriteRegister(REG_PTBR1, (unsigned int) (idlePCB->pagetable + MAX_PT_LEN)); 
+	// WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
+	// LoadProgram(cmd_args[0], cmd_args, idlePCB);
 	return;
 }
 
@@ -135,7 +151,6 @@ int SetKernelBrk(void *addr) {
 	// update page table if we're in VM
 	if (isVM == 1) {
 		struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
-		struct pte currPte;
 		int currAddr;
 
 		// if addr lower than currKernelBrk, invalidate pages
@@ -143,8 +158,7 @@ int SetKernelBrk(void *addr) {
 			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
-				currPte = pageTable[vpn-vpn0];
-				invalidatePageTableEntry(&currPte);
+				invalidatePageTableEntry(pageTable + vpn - vpn0);
 			}
 		}
 	
@@ -153,13 +167,12 @@ int SetKernelBrk(void *addr) {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
-				currPte = pageTable[vpn-vpn0];
 				frame_t *newFrame;
 				if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
 					return ERROR;
 				}
 				
-				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+				setPageTableEntry(pageTable + vpn - vpn0, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
 			}
 		}
 	}

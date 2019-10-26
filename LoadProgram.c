@@ -160,8 +160,9 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
    * allocated, and set them all to writable.
    */
 
-struct pte *currentPte;
-frame_t *newFrame;
+  struct pte *pageTableR1Base = proc->pagetable + MAX_PT_LEN;
+  struct pte *currentPte = pageTableR1Base;
+  frame_t *newFrame;
 // ==>> Throw away the old region 1 virtual address space of the
 // ==>> curent process by freeing
 // ==>> all physical pages currently mapped to region 1, and setting all 
@@ -174,10 +175,12 @@ frame_t *newFrame;
 // ==>> deallocate a few pages to fit the size of memory to the requirements
 // ==>> of the new process.
 
-  currentPte = proc->pagetable;
+  // TODO: test when we pass in a PCB with a previously filled region 1 virtual address space
   for (i = 0; i < MAX_PT_LEN; i++) {
-      freeFrame(FrameList, numFrames, currentPte->pfn);
-      invalidatePageTableEntry(currentPte);
+      if (currentPte->valid == 1) {
+        freeFrame(FrameList, numFrames, currentPte->pfn);
+        invalidatePageTableEntry(currentPte);
+      }
       currentPte++;
   }
 
@@ -186,7 +189,7 @@ frame_t *newFrame;
 // ==>> These pages should be marked valid, with a protection of 
 // ==>> (PROT_READ | PROT_WRITE).
 
-  currentPte = (struct pte *) (VMEM_1_BASE + (text_pg1 << PAGESHIFT));
+  currentPte = pageTableR1Base + text_pg1;
   for (i = 0; i < li.t_npg; i++) { 
       if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
         return KILL;
@@ -200,7 +203,7 @@ frame_t *newFrame;
 // ==>> These pages should be marked valid, with a protection of 
 // ==>> (PROT_READ | PROT_WRITE).
 
-  currentPte = (struct pte *) (VMEM_1_BASE + (data_pg1 << PAGESHIFT));
+  currentPte = pageTableR1Base + data_pg1;
   for (i = 0; i < data_npg; i++) {
       if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
         return KILL;
@@ -218,8 +221,7 @@ frame_t *newFrame;
 // ==>> These pages should be marked valid, with a
 // ==>> protection of (PROT_READ | PROT_WRITE).
 
-  struct pte *r1BasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
-	struct pte * currentStackPte = r1BasePtep + MAX_PT_LEN - 1;
+	struct pte *currentStackPte = pageTableR1Base + MAX_PT_LEN - stack_npg;
 
   for (i = 0; i < stack_npg; i++) {
     if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
@@ -271,7 +273,7 @@ frame_t *newFrame;
 // ==>> into the TLB.  It's nice for the TLB and the page tables to remain
 // ==>> consistent.
 
-   currentPte = (struct pte *) (VMEM_1_BASE + (text_pg1 << PAGESHIFT));
+   currentPte = pageTableR1Base + text_pg1;
   for (i = 0; i < li.t_npg; i++) { 
       setPageTableEntry(currentPte, currentPte->valid, (PROT_READ|PROT_EXEC), currentPte->pfn);
       currentPte++;

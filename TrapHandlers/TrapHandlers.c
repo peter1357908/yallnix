@@ -17,6 +17,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
+    TracePrintf(1, "\nhey i'm the memory trap handler\n");
     void *addr = uctxt->addr;
 	void *sp = uctxt->sp;
 	
@@ -49,5 +50,9 @@ void handleTtyTransmit(UserContext *uctxt) {
 }
 
 void handleTrapDisk(UserContext *uctxt) {
+    // throw Error;
+}
+
+void handleNothing(UserContext *uctxt) {
     // throw Error;
 }
