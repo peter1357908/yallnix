@@ -36,6 +36,10 @@ int itemCount; // use this for lock, cvar, and pipe ids
 // void * tty2Buf -- buffer that can grow dynamically
 
 #include <hardware.h>
+#include "KernelDataStructures/FrameList/FrameList.h"
+
+#define KILL 42
+#define SUCCESS 0
 
 frame_t *FrameList;
 int numFrames;

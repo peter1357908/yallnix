@@ -4,6 +4,8 @@
 #include "TrapHandlers/TrapHandlers.h"
 #include "KernelDataStructures/PageTable/PageTable.h"
 #include "KernelDataStructures/FrameList/FrameList.h"
+#include "KernelDataStructures/Scheduler/Scheduler.h"
+#include "LoadProgram.h"
 
 frame_t *FrameList;
 int numFrames;
@@ -15,13 +17,6 @@ void *currKernelBrk;  // everything from KernelDataStart until this is READ and 
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 	kernelDataStart = _KernelDataStart;
 	currKernelBrk = _KernelDataEnd;  // _KernelDataEnd is the lowest address NOT in use
-}
-
-void DoIdle(void) {
-	while(1) {
-		TracePrintf(1, "DoIdle\n");
-		Pause();
-	}
 }
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
@@ -94,33 +89,38 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	struct pte * r1StackBasePtep = r1BasePtep + MAX_PT_LEN - 1;
 	frame_t *r1StackBaseFrame;
 	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
-		return Halt();
+		Halt();
 	}
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
 		
-	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);	
-	void *r0DoIdle = DoIdle;
-	
-	// TracePrintf(1, "r1StackBase = %p\n", r1StackBase);
-	// TracePrintf(1, "r0DoIdle = %p\n", r0DoIdle);
-	
-	// TracePrintf(1, "*r1StackBase = %p\n", *r1StackBase);
-	
-	uctxt->pc = r0DoIdle;
-	
-	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
-	
-	// *r1StackBase = r0DoIdle;
+	// 	void **r1StackBase = (void **) (VMEM_1_LIMIT - PAGESIZE);	
+	// 	void *r0DoIdle = DoIdle;
+		
+	// 	// TracePrintf(1, "r1StackBase = %p\n", r1StackBase);
+	// 	// TracePrintf(1, "r0DoIdle = %p\n", r0DoIdle);
+		
+	// 	// TracePrintf(1, "*r1StackBase = %p\n", *r1StackBase);
+		
+	// 	uctxt->pc = r0DoIdle;
+		
+	// 	TracePrintf(1, "uctxt->pc = %p\n", uctxt->pc);
+		
+	// 	// *r1StackBase = r0DoIdle;
 
-	uctxt->sp = (void *) r1StackBase;
-	
-	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
-#ifdef LINUX
-	uctxt->sp = (void *) r1StackBase;
-#endif
+	// 	uctxt->sp = (void *) r1StackBase;
+		
+	// 	TracePrintf(1, "uctxt->sp = %p\n", uctxt->sp);
+	// #ifdef LINUX
+	// 	uctxt->sp = (void *) r1StackBase;
+	// #endif
 
 	// initialize and run the first process (via scheduler, given uctxt)
 	
+	PCB_t *idlePCB;
+	if (initProcess(&idlePCB, uctxt) == ERROR) {
+		Halt();
+	}
+	LoadProgram("idle", cmd_args, idlePCB);
 	return;
 }
 
@@ -140,7 +140,7 @@ int SetKernelBrk(void *addr) {
 
 		// if addr lower than currKernelBrk, invalidate pages
 		if ((int) addr < (int) currKernelBrk) {
-			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE ) {
+			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				currPte = pageTable[vpn-vpn0];
@@ -159,7 +159,7 @@ int SetKernelBrk(void *addr) {
 					return ERROR;
 				}
 				
-				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), (int) newFrame>>PAGESHIFT);
+				setPageTableEntry(&currPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
 			}
 		}
 	}
