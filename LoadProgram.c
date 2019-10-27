@@ -23,7 +23,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> for the process holding the new program.  
 {
   int fd;
-  int (*entry)();
+  // int (*entry)();  // what is this? Doesn't seem to be used.
   struct load_info li;
   int i;
   char *cp;
@@ -78,7 +78,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
   }
   argcount = i;
 
- TracePrintf(2, "LoadProgram: argsize %d, argcount %d\n", size, argcount);
+  TracePrintf(2, "LoadProgram: argsize %d, argcount %d\n", size, argcount);
   
   /*
    *  The arguments will get copied starting at "cp", and the argv
@@ -112,7 +112,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
    * Compute how many pages we need for the stack */
   stack_npg = (VMEM_1_LIMIT - DOWN_TO_PAGE(cp2)) >> PAGESHIFT;
 
- TracePrintf(1, "LoadProgram: heap_size %d, stack_size %d\n",
+  TracePrintf(1, "LoadProgram: heap_size %d, stack_size %d\n",
 	      li.t_npg + data_npg, stack_npg);
 
 
@@ -135,6 +135,9 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> Here you replace your data structure proc
 // ==>> proc->context.sp = cp2;
   proc->uctxt->sp = cp2;
+#ifdef LINUX
+  proc->uctxt->ebp = cp2;
+#endif
 
 
   /*

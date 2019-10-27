@@ -47,13 +47,13 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
 
-	// initialize the initial pagetable (think of this as for the initial idle process)
+	// initialize the first pagetable (for the idle process)
 	struct pte *pageTable = initializePageTable();
 	struct pte *currentPte = pageTable;
 
 	int addr;
 
-	// initialize page tables
+	// fill the pagetable according to the current kernel state
 	for (addr = VMEM_BASE; addr < VMEM_0_LIMIT; addr += PAGESIZE) {
 		u_long prot;
 
@@ -86,7 +86,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_PTBR1, (unsigned int) (pageTable + MAX_PT_LEN)); 
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
-	// initialize FrameList
+	// initialize FrameList; must happen after the pagetable is initialized and filled.
 	numFrames = pmem_size / PAGESIZE;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
@@ -114,17 +114,16 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		(((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
 
   	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
-
-	uctxt->pc = DoIdle;
+	
 	uctxt->sp = cp2;
-
 #ifdef LINUX
 	uctxt->ebp = cp2;
 #endif
 
-	// initialize and run the first process (via scheduler, given uctxt)
-	
+	uctxt->pc = DoIdle;
 
+	// initialize and run the `init` process (via scheduler, given uctxt)
+	
 	// PCB_t *initPCB;
 	// if (initProcess(&initPCB, uctxt) == ERROR) {
 	// 	Halt();
@@ -162,7 +161,7 @@ int SetKernelBrk(void *addr) {
 			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				targetPtep = pageTable + vpn - vpn0;
-				freeFrame(FrameList, numFrames, targetPte->pfn);
+				freeFrame(FrameList, numFrames, targetPtep->pfn);
 				invalidatePageTableEntry(targetPtep);
 			}
 		}
