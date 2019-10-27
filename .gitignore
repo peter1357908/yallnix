@@ -15,6 +15,7 @@ TRACE
 
 
 # Binaries
+**/*.a
 **/*.o
 yalnix
 init

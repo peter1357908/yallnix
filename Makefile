@@ -21,24 +21,32 @@
 ALL = $(KERNEL_ALL) $(USER_APPS)
 KERNEL_ALL = yalnix
 
-TRAP_HANDLERS = TrapHandlers
 KERNEL_DATA_STRUCTURES = KernelDataStructures
-YALNIX_STUFFF = YalnixStuff
+PAGE_TABLE = $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable
+FRAME_LIST = $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList
+SCHEDULER = $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler
+
+GENERAL_DATA_STRUCTURES = GeneralDataStructures
+QUEUE = $(GENERAL_DATA_STRUCTURES)/Queue/Queue
+
+TRAP_HANDLERS = TrapHandlers/TrapHandlers
+LOAD_PROGRAM = LoadProgram
+
 
 #List all kernel source files here.  
-KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS)/$(TRAP_HANDLERS).c $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.c $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.c $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler.c LoadProgram.c
+KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS).c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(LOAD_PROGRAM).c
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS)/$(TRAP_HANDLERS).o $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.o $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.o $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler.o LoadProgram.o
+KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS).o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(QUEUE).o $(LOAD_PROGRAM).o
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(TRAP_HANDLERS)/$(TRAP_HANDLERS).h $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable.h $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList.h $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler.h LoadProgram.h
+KERNEL_INCS = Kernel.h $(TRAP_HANDLERS).h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(QUEUE).h $(LOAD_PROGRAM).h
 
 
 #List all user programs here.
-USER_APPS = idle
+USER_APPS = init
 #List all user program source files here.  SHould be the same as the previous list, with ".c" added to each file
-USER_SRCS = idle.c
+USER_SRCS = init.c
 #List the objects to be formed form the user  source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-USER_OBJS = idle.o
+USER_OBJS = init.o
 #List all of the header files necessary for your user programs
 USER_INCS = 
 
@@ -97,7 +105,8 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 all: $(ALL)	
 
 clean:
-	rm -f *.o *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
+	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
+	find . -name '*.o' -delete
 
 count:
 	wc $(KERNEL_SRCS) $(USER_SRCS)
@@ -116,13 +125,4 @@ $(KERNEL_ALL): $(KERNEL_OBJS) $(KERNEL_LIBS) $(KERNEL_INCS)
 
 $(USER_APPS): $(USER_OBJS) $(USER_INCS)
 	$(ETCDIR)/yuserbuild.sh $@ $(DDIR58) $@.o
-
-
-
-
-
-
-
-
-
-
+	

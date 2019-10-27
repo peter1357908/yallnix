@@ -19,7 +19,6 @@ void handleTrapIllegal(UserContext *uctxt) {
 void handleTrapMemory(UserContext *uctxt) {
 	TracePrintf(1, "\nhey i'm the memory trap handler\n");
     void *addr = uctxt->addr;
-	void *sp = uctxt->sp;
 	
     // if address in Region 1 & in between stack & brk
 	// if ((int) addr < (int) sp && (int) )

@@ -1,5 +1,5 @@
-#ifndef	_KERNELCALLS_H
-#define	_KERNELCALLS_H
+#ifndef	_KernelCalls_h
+#define	_KernelCalls_h
 
 #include <hardware.h>
 
@@ -32,4 +32,4 @@ int Kernel_PipeInit(int *pip_idp);
 int Kernel_PipeRead(int pipe_id, void *buf, int len);
 int Kernel_PipeWrite(int pipe_id, void *buf, int len);
 
-#endif /*!_KERNELCALLS_H*/
+#endif /* _KernelCalls_h */

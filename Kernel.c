@@ -121,6 +121,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 #endif
 
 	uctxt->pc = DoIdle;
+	
+	// TODO: Put the idle process into a PCB
 
 	// initialize and run the `init` process (via scheduler, given uctxt)
 	
