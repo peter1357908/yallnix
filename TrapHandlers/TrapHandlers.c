@@ -17,7 +17,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
-    TracePrintf(1, "\nhey i'm the memory trap handler\n");
+	TracePrintf(1, "\nhey i'm the memory trap handler\n");
     void *addr = uctxt->addr;
 	void *sp = uctxt->sp;
 	
@@ -54,5 +54,6 @@ void handleTrapDisk(UserContext *uctxt) {
 }
 
 void handleNothing(UserContext *uctxt) {
+	TracePrintf(1, "\nhanldNothing() was invoked...\n");
     // throw Error;
 }

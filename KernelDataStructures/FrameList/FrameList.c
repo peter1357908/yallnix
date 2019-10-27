@@ -14,13 +14,14 @@ int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk) {
 	int i;
 	for (i = 0; i < numFrames; i++) {
 		currFrame->addr = frameAddr;
-		if (((int) frameAddr < (int) currKernelBrk) || (KERNEL_STACK_BASE <= (int) frameAddr && KERNEL_STACK_LIMIT > (int) frameAddr)) {
+		if (((int) frameAddr < (int) currKernelBrk) || (KERNEL_STACK_BASE <= (int) frameAddr && (int) frameAddr < KERNEL_STACK_LIMIT)) {
 			currFrame->isFree = 0;
 		} else {
 			currFrame->isFree = 1;
 		}
-		frameAddr += PAGESIZE;
 		currFrame++;
+		frameAddr += PAGESIZE;
+		
 	}
     return 0;
 }

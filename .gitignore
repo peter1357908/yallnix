@@ -17,7 +17,7 @@ TRACE
 # Binaries
 **/*.o
 yalnix
-idle
+init
 
 
 # For convenience

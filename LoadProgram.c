@@ -273,7 +273,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> into the TLB.  It's nice for the TLB and the page tables to remain
 // ==>> consistent.
 
-   currentPte = pageTableR1Base + text_pg1;
+  currentPte = pageTableR1Base + text_pg1;
   for (i = 0; i < li.t_npg; i++) { 
       setPageTableEntry(currentPte, currentPte->valid, (PROT_READ|PROT_EXEC), currentPte->pfn);
       currentPte++;

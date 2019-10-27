@@ -15,11 +15,10 @@ void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
 
 void DoIdle() {
-	return;
-	// while(1) {
-	// 	TracePrintf(1, "DoIdle\n");
-	// 	Pause();
-	// }
+	while(1) {
+		TracePrintf(1, "DoIdle\n");
+		// Pause();
+	}
 }
 
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
@@ -66,6 +65,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		else if (addr + PAGESIZE <= (int) currKernelBrk) {
 			prot = (PROT_READ|PROT_WRITE);
 		}
+		// r/w for stack; KERNEL_STACK_BASE is actually always at the beginning of a page
 		else if (KERNEL_STACK_BASE < addr + PAGESIZE) {
 			prot = (PROT_READ|PROT_WRITE);
 		}
@@ -86,7 +86,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_PTBR1, (unsigned int) (pageTable + MAX_PT_LEN)); 
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
-	// initialize FrameList (are we supposed to free it somewhere?)
+	// initialize FrameList
 	numFrames = pmem_size / PAGESIZE;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
@@ -94,8 +94,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
-	
-	// TODO: initialize idle process 
 
 	// initialize the userland stack, with one page of memory at the very top
 	struct pte *r1BasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
@@ -106,15 +104,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	}
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
 		
-	// copied from LoadProgram.c
+	// initialize the idle process by manipulating uctxt like in LoadProgram
+	// DoIdle() has no arguments and needs no arguments
 	int size = 0;
 	int argcount = 0;
 	char *cp = ((char *)VMEM_1_LIMIT) - size;
 
 	char **cpp = (char **)
-		(((int)cp - 
-		((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) 
-		& ~7);
+		(((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
 
   	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
 
@@ -128,15 +125,15 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// initialize and run the first process (via scheduler, given uctxt)
 	
 
-	// PCB_t *idlePCB;
-	// if (initProcess(&idlePCB, uctxt) == ERROR) {
+	// PCB_t *initPCB;
+	// if (initProcess(&initPCB, uctxt) == ERROR) {
 	// 	Halt();
 	// }
-	// WriteRegister(REG_PTBR0, (unsigned int) idlePCB->pagetable);
+	// WriteRegister(REG_PTBR0, (unsigned int) initPCB->pagetable);
 	// WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
-	// WriteRegister(REG_PTBR1, (unsigned int) (idlePCB->pagetable + MAX_PT_LEN)); 
+	// WriteRegister(REG_PTBR1, (unsigned int) (initPCB->pagetable + MAX_PT_LEN)); 
 	// WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
-	// LoadProgram(cmd_args[0], cmd_args, idlePCB);
+	// LoadProgram(cmd_args[0], cmd_args, initPCB);
 	return;
 }
 
@@ -148,17 +145,25 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
 	
+	// if it were to grow into the kernel stack, return ERROR
+	if ((int) addr >= KERNEL_STACK_BASE) {
+		return ERROR;
+	}
+	
 	// update page table if we're in VM
 	if (isVM == 1) {
 		struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
+		struct pte *targetPtep;
 		int currAddr;
+		int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 
-		// if addr lower than currKernelBrk, invalidate pages
+		// if addr lower than currKernelBrk, invalidate pages and free frames accordingly
 		if ((int) addr < (int) currKernelBrk) {
 			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
-				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
-				invalidatePageTableEntry(pageTable + vpn - vpn0);
+				targetPtep = pageTable + vpn - vpn0;
+				freeFrame(FrameList, numFrames, targetPte->pfn);
+				invalidatePageTableEntry(targetPtep);
 			}
 		}
 	
@@ -166,13 +171,12 @@ int SetKernelBrk(void *addr) {
 		else {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
-				int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 				frame_t *newFrame;
 				if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
 					return ERROR;
 				}
-				
-				setPageTableEntry(pageTable + vpn - vpn0, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+				targetPtep = pageTable + vpn - vpn0;
+				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
 			}
 		}
 	}

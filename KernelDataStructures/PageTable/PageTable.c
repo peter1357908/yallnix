@@ -4,6 +4,7 @@
 // PageTable
     // array of PTEs (of a fixed number)
 
+// TODO: return ERROR/0, and write to a struct pte **
 struct pte *initializePageTable() {
 	// NOTE: malloc appears to return an int, so we're casting it to a pointer
     struct pte *pageTable = (struct pte *) malloc(sizeof(struct pte) * NUM_VPN);
@@ -27,8 +28,3 @@ void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn)
 void invalidatePageTableEntry(struct pte *ptep) {
 	ptep->valid = 0;
 }
-
-// void deletePageTable() {
-	// // for each PTE *ptep: free(ptep);
-	// // free(pagetable)
-// }
