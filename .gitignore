@@ -1,11 +1,24 @@
+# Editor-specifics
 .vscode
-YalnixStuff
-**/*.o
+
+# Yalnix logs
 TTYLOG*
-SCRATCH
-yalnix
 DISK
+
+
+# Debug-related
 .gdbinit
+
+
+# Trace files
 TRACE
-PETERSUCKS*
-PETERISOKAY*
+
+
+# Binaries
+**/*.o
+yalnix
+idle
+
+
+# For convenience
+YalnixStuff
