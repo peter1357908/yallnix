@@ -1,0 +1,40 @@
+PAGETABLE: 1024 Bytes (OR 2^10)
+NUM_VPN: 256 pages
+size of pte: 4 bytes 
+pagesize: 8192 bytes (2^13)
+offset: 8191 bytes (2^13)
+VMEM_REGION_SIZE: 2^20 bytes
+TOTAL_VMEM_SIZE: 2^21 bytes
+PMEM_SIZE: 2^22 bytes
+
+
+0x00020000 kernel PTE addr
+- vpn = 0x10 (page 16)
+- 
+
+pageTable:
+
+{valid = 1, prot = 5, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 1, prot = 5, pfn = 8192}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 1, prot = 5, pfn = 16384}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 2080}, 
+{valid = 1, prot = 0, pfn = 0}, 
+{valid = 1, prot = 5, pfn = 24576}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 1, prot = 5, pfn = 32768}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 1, prot = 5, pfn = 40960}, 
+{valid = 0, prot = 0, pfn = 0}, 
+{valid = 0, prot = 0, pfn = 0}
+

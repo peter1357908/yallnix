@@ -23,8 +23,16 @@ void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn)
     ptep->valid = valid;
     ptep->prot = prot;
     ptep->pfn = pfn;
+	if (ReadRegister(REG_VM_ENABLE) == 1) {
+		unsigned int virtualAddr = (ptep->pfn)<<PAGESHIFT;
+		WriteRegister(REG_TLB_FLUSH, virtualAddr);
+	}
 }
 
 void invalidatePageTableEntry(struct pte *ptep) {
 	ptep->valid = 0;
+	if (ReadRegister(REG_VM_ENABLE) == 1) {
+		unsigned int virtualAddr = (ptep->pfn)<<PAGESHIFT;
+		WriteRegister(REG_TLB_FLUSH, virtualAddr);
+	}
 }

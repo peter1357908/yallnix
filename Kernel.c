@@ -17,7 +17,7 @@ void *currKernelBrk;  // everything from KernelDataStart until this is READ and 
 void DoIdle() {
 	while(1) {
 		TracePrintf(1, "DoIdle\n");
-		// Pause();
+		Pause();
 	}
 }
 
@@ -122,10 +122,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 	uctxt->pc = DoIdle;
 	
-	// TODO: Put the idle process into a PCB
+	// idle process is the only process that is not initialized with initProcess 
+	// (found in Scheduler.c)
+	idlePCB = (PCB_t *) malloc(sizeof(PCB_t));
+	idlePCB->pid = 0; 
+	idlePCB->pagetable = pageTable;
+	idlePCB->uctxt = uctxt;
 
 	// initialize and run the `init` process (via scheduler, given uctxt)
-	
 	// PCB_t *initPCB;
 	// if (initProcess(&initPCB, uctxt) == ERROR) {
 	// 	Halt();

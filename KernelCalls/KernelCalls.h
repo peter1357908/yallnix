@@ -3,33 +3,33 @@
 
 #include <hardware.h>
 
-int Kernel_Fork(void);
-int Kernel_Exec(char *filename, char **argvec);
-void Kernel_Exit(int status);
-int Kernel_Wait(int *status_ptr);
-int Kernel_GetPid();
-int Kernel_Brk(void *addr);
-int Kernel_Delay(int clock_ticks);
-int Kernel_Reclaim(int id);
+int KernelFork(void);
+int KernelExec(char *filename, char **argvec);
+void KernelExit(int status);
+int KernelWait(int *status_ptr);
+int KernelGetPid();
+int KernelBrk(void *addr);
+int KernelDelay(int clock_ticks);
+int KernelReclaim(int id);
 
 // lock stuff
-int Kernel_LockInit(int *lock_idp);
-int Kernel_Acquire(int lock_id);
-int Kernel_Release(int lock_id); 
+int KernelLockInit(int *lock_idp);
+int KernelAcquire(int lock_id);
+int KernelRelease(int lock_id); 
 
 // cvar stuff
-int Kernel_CvarInit(int *cvar_idp);
-int Kernel_CvarSignal(int cvar_id);
-int Kernel_CvarBroadcast(int cvar_id);
-int Kernel_CvarWait(int cvar_id, int lock_id);
+int KernelCvarInit(int *cvar_idp);
+int KernelCvarSignal(int cvar_id);
+int KernelCvarBroadcast(int cvar_id);
+int KernelCvarWait(int cvar_id, int lock_id);
 
 // tty stuff
-int Kernel_TtyWrite(int tty_id, void *buf, int len);
-int Kernel_TtyRead(int tty_id, void *buf, int len);
+int KernelTtyWrite(int tty_id, void *buf, int len);
+int KernelTtyRead(int tty_id, void *buf, int len);
 
 // pipe stuff
-int Kernel_PipeInit(int *pip_idp);
-int Kernel_PipeRead(int pipe_id, void *buf, int len);
-int Kernel_PipeWrite(int pipe_id, void *buf, int len);
+int KernelPipeInit(int *pip_idp);
+int KernelPipeRead(int pipe_id, void *buf, int len);
+int KernelPipeWrite(int pipe_id, void *buf, int len);
 
 #endif /* _KernelCalls_h */

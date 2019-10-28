@@ -23,18 +23,22 @@
 #define _Scheduler_h
 #include <hardware.h>
 
-// PROCESSES_SUCK
-
 typedef struct PCB {
     int pid;
     void *brk;
     UserContext *uctxt;
     KernelContext *kctxt;
     // ZombieQueue *zq;
-    int numChildren;
+    unsigned int numChildren;
     struct PCB *parent; // -- currently only using this for KernelExit/KernelWait
 	struct pte *pagetable;
+    unsigned int numRemainingDelayTicks;
 } PCB_t;
 
+PCB_t *currPCB;
+PCB_t *idlePCB;
+
 int initProcess(PCB_t **, UserContext *uctxt);
+
+
 #endif /*_Scheduler_h*/

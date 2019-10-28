@@ -1,4 +1,7 @@
 #include <hardware.h>
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include "../Kernel.h"
+#include <yalnix.h>
 
 int Kernel_Fork(void) {
     // initialize new PCB for child (with new pid)
@@ -51,32 +54,50 @@ int KernelWait(int *status_ptr) {
 }
 
 int KernelGetPid(void) {
-    // return currentProcess->pid
+    return currPCB->pid; 
 }
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
-int KernelBrk(void *addr){
-	// if addr lower than brk:
-	// for each PTE *ptep in to-be-invalidated pages:
-		// invalidatePTE(ptep);
-	// if addr higher than brk:
-    // for each PTE *ptep in to-be-allocated pages:
-        // grab pfn from FreePMList
-        // validatePTE(ptep, prot, pfn);
-	
-    // currentProcess->brk = addr
-    // return ERROR if error else 0
-    // flush TLB!
+int KernelBrk(void *addr) {
+    void *brk = currPCB->brk;
+    struct pte *r1BasePtep = currPCB->pagetable + MAX_PT_LEN;
+    struct pte *targetPtep;
+    int currAddr;
+    int vpn1 = (VMEM_1_BASE>>PAGESHIFT); // first page in VMEM_0
+
+    // if addr lower than brk, invalidate pages and free frames accordingly
+    if ((int) addr < (int) brk) {
+        for (currAddr = (int) addr; currAddr < (int) brk; currAddr += PAGESIZE) {
+            int vpn = (currAddr>>PAGESHIFT);
+            targetPtep = r1BasePtep + vpn - vpn1;
+            freeFrame(FrameList, numFrames, targetPtep->pfn);
+            invalidatePageTableEntry(targetPtep);
+        }
+    }
+
+    // if addr higher than brk, validate pages and allocate frames accordingly
+    else {
+        for (currAddr = (int) brk; currAddr < (int) addr; currAddr += PAGESIZE) {
+            int vpn = (currAddr>>PAGESHIFT);
+            frame_t *newFrame;
+            if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+                return ERROR;
+            }
+            targetPtep = r1BasePtep + vpn - vpn1;
+            setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+        }
+    }
+    currPCB->brk = addr;
+    return 0;
 }
 
 int KernelDelay(int clock_ticks){
-    // if clock_ticks < 0:
-        // return Error
-    // ticksLeft = clock_ticks
-    // while ticksLeft > 0:
-        // Kernel_CvarWait(clock_id, &lock) // figure out what to do with this lock
-        // decrement ticksLeft
-    // return 0
+    if (clock_ticks < 0) {
+        return ERROR;
+    }
+    currPCB->numRemainingDelayTicks = clock_ticks;
+    // TODO: context switch
+    return 0;
 }
 
 int KernelReclaim(int id) {
