@@ -14,8 +14,15 @@ struct pte *initializePageTable() {
 		ptep->valid = 0;
 		ptep->prot = PROT_NONE;
 		ptep->pfn = 0;
+		ptep++;
 	}
     return pageTable;
+}
+
+int getVirtualAddr(struct pte *ptep) {
+	struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
+	int vpn = ((int) ptep - (int) pageTable) / sizeof(struct pte);
+	return vpn<<PAGESHIFT;
 }
 
 // valid = 1 bit; prot = 3 bits; pfn = 24 bits
@@ -24,15 +31,15 @@ void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn)
     ptep->prot = prot;
     ptep->pfn = pfn;
 	if (ReadRegister(REG_VM_ENABLE) == 1) {
-		unsigned int virtualAddr = (ptep->pfn)<<PAGESHIFT;
-		WriteRegister(REG_TLB_FLUSH, virtualAddr);
+		int virtualAddr = getVirtualAddr(ptep);
+		WriteRegister(REG_TLB_FLUSH, (unsigned int) virtualAddr);
 	}
 }
 
 void invalidatePageTableEntry(struct pte *ptep) {
 	ptep->valid = 0;
 	if (ReadRegister(REG_VM_ENABLE) == 1) {
-		unsigned int virtualAddr = (ptep->pfn)<<PAGESHIFT;
-		WriteRegister(REG_TLB_FLUSH, virtualAddr);
+		int virtualAddr = getVirtualAddr(ptep);
+		WriteRegister(REG_TLB_FLUSH, (unsigned int) virtualAddr);
 	}
 }
