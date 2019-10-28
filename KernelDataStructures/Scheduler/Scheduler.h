@@ -31,7 +31,7 @@ typedef struct PCB {
     // ZombieQueue *zq;
     unsigned int numChildren;
     struct PCB *parent; // -- currently only using this for KernelExit/KernelWait
-	struct pte *pagetable;
+	struct pte *r1PageTable;
     unsigned int numRemainingDelayTicks;
 } PCB_t;
 

@@ -39,8 +39,8 @@ void handleTrapMemory(UserContext *uctxt) {
         return;
     }
 
-    struct pte *currPageTable = currPCB->pagetable;
-    struct pte *currPte = currPageTable + 2 * MAX_PT_LEN - 1;
+    struct pte *currPageTable = currPCB->r1PageTable;
+    struct pte *currPte = currPageTable + MAX_PT_LEN - 1;
     frame_t *newFrame;
     void *currAddr = (void *) (VMEM_1_LIMIT - PAGESIZE);
     while (((int) currAddr>>PAGESHIFT) >= targetPageNumber) {

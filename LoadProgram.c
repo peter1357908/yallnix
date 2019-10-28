@@ -163,7 +163,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
    * allocated, and set them all to writable.
    */
 
-  struct pte *pageTableR1Base = proc->pagetable + MAX_PT_LEN;
+  struct pte *pageTableR1Base = proc->r1PageTable;
   struct pte *currentPte = pageTableR1Base;
   frame_t *newFrame;
 // ==>> Throw away the old region 1 virtual address space of the

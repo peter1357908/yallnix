@@ -12,7 +12,7 @@ int initProcess(PCB_t **pcb, UserContext *uctxt) {
     }
 
     newPCB->pid = nextPid++;
-    newPCB->pagetable = initializePageTable();
+    newPCB->r1PageTable = initializeRegionPageTable();
     newPCB->uctxt = uctxt;
     newPCB->numRemainingDelayTicks = 0;
     newPCB->numChildren = 0;

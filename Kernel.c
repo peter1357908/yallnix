@@ -48,8 +48,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
 
 	// initialize the first pagetable (for the idle process)
-	struct pte *pageTable = initializePageTable();
-	struct pte *currentPte = pageTable;
+	struct pte *r0PageTable = initializeRegionPageTable();
+	struct pte *currentPte = r0PageTable;
 
 	int addr;
 
@@ -80,14 +80,16 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		currentPte++;
 	}	
 
+	struct pte *r1PageTable = initializeRegionPageTable();
+
 	// set MMU registers 
-	WriteRegister(REG_PTBR0, (unsigned int) pageTable);
+	WriteRegister(REG_PTBR0, (unsigned int) r0PageTable);
 	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
-	WriteRegister(REG_PTBR1, (unsigned int) (pageTable + MAX_PT_LEN)); 
+	WriteRegister(REG_PTBR1, (unsigned int) r1PageTable); 
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
 	// initialize FrameList; must happen after the pagetable is initialized and filled.
-	numFrames = pmem_size / PAGESIZE;
+	numFrames = (pmem_size / PAGESIZE) / 2;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
 	}
@@ -96,8 +98,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	// initialize the userland stack, with one page of memory at the very top
-	struct pte *r1BasePtep = ((struct pte *) ReadRegister(REG_PTBR1));
-	struct pte *r1StackBasePtep = r1BasePtep + MAX_PT_LEN - 1;
+	struct pte *r1StackBasePtep = r1PageTable + MAX_PT_LEN - 1;
 	frame_t *r1StackBaseFrame;
 	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
 		Halt();
@@ -126,7 +127,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// (found in Scheduler.c)
 	idlePCB = (PCB_t *) malloc(sizeof(PCB_t));
 	idlePCB->pid = 0; 
-	idlePCB->pagetable = pageTable;
+	idlePCB->r1PageTable = r1PageTable;
 	idlePCB->uctxt = uctxt;
 
 	// initialize and run the `init` process (via scheduler, given uctxt)
@@ -157,7 +158,7 @@ int SetKernelBrk(void *addr) {
 	
 	// update page table if we're in VM
 	if (isVM == 1) {
-		struct pte *pageTable = (struct pte *) ReadRegister(REG_PTBR0);
+		struct pte *r0PageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte *targetPtep;
 		int currAddr;
 		int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
@@ -166,7 +167,7 @@ int SetKernelBrk(void *addr) {
 		if ((int) addr < (int) currKernelBrk) {
 			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
-				targetPtep = pageTable + vpn - vpn0;
+				targetPtep = r0PageTable + vpn - vpn0;
 				freeFrame(FrameList, numFrames, targetPtep->pfn);
 				invalidatePageTableEntry(targetPtep);
 			}
@@ -180,7 +181,7 @@ int SetKernelBrk(void *addr) {
 				if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
 					return ERROR;
 				}
-				targetPtep = pageTable + vpn - vpn0;
+				targetPtep = r0PageTable + vpn - vpn0;
 				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
 			}
 		}
