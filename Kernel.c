@@ -89,7 +89,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
 	// initialize FrameList; must happen after the pagetable is initialized and filled.
-	numFrames = (pmem_size / PAGESIZE) / 2;
+	numFrames = pmem_size / PAGESIZE;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
 	}
