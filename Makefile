@@ -28,17 +28,19 @@ SCHEDULER = $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler
 
 GENERAL_DATA_STRUCTURES = GeneralDataStructures
 QUEUE = $(GENERAL_DATA_STRUCTURES)/Queue/Queue
+HASH_MAP = $(GENERAL_DATA_STRUCTURES)/HashMap/HashMap
+SET_DS = $(GENERAL_DATA_STRUCTURES)/HashMap/set
 
 TRAP_HANDLERS = TrapHandlers/TrapHandlers
 LOAD_PROGRAM = LoadProgram
 
 
 #List all kernel source files here.  
-KERNEL_SRCS = Kernel.c $(TRAP_HANDLERS).c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(LOAD_PROGRAM).c
+KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-KERNEL_OBJS = Kernel.o $(TRAP_HANDLERS).o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(QUEUE).o $(LOAD_PROGRAM).o
+KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(QUEUE).o $(HASH_MAP).o $(SET_DS).o $(TRAP_HANDLERS).o $(LOAD_PROGRAM).o
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(TRAP_HANDLERS).h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(QUEUE).h $(LOAD_PROGRAM).h
+KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h
 
 
 #List all user programs here.

@@ -1,4 +1,9 @@
-// generic queue, implemented with linked list
+/*
+ * Queue.c - modified from CS58 project 2 `traffic` module by Shengsong Gao
+ *
+ * Generic queue, implemented with linked list.
+ *
+ */
 
 
 #include <stdio.h>
