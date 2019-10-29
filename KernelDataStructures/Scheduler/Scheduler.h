@@ -43,6 +43,7 @@ PCB_t *initPCB;
 int initProcess(PCB_t **);
 
 
+KernelContext *getKernelContext(KernelContext *currKctxt, void *kctxt, void *nextPcbP);
 KernelContext *MyKCS(KernelContext *kc_in, void *curr_pcb_b, void *next_pcb_p);
 
 #endif /*_Scheduler_h*/

@@ -59,7 +59,7 @@ KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP , void *nextPcbP) 
     currPCB = (PCB_t *) nextPcbP;
 
     // copy kctxt into currPcbP
-    memmove((((PCB_t *)currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
+    // memmove((((PCB_t *)currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
     // return pointer to kctxt of nextPcbP
     return ((PCB_t *) nextPcbP)->kctxt;
 }

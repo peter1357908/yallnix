@@ -1,14 +1,10 @@
-// #include <hardware.h>
+#include <hardware.h>
 
-// void doIdle() {
-// 	while(1) {
-// 		TracePrintf(1, "DoIdle\n");
-// 		Pause();
-// 	}
-// }
-
-void main(int argc, void *argv) {
+void main() {
 	while(1) {
 		TracePrintf(1, "\nI'm the init process!\n");
 	}
+	// int pid = GetPid();
+	// Delay(5);
+
 }

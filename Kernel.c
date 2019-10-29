@@ -110,32 +110,29 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		
 	// initialize the idle process by manipulating uctxt like in LoadProgram
 	// DoIdle() has no arguments and needs no arguments
+	UserContext *idleUctxt = (UserContext *) malloc(sizeof(UserContext));
 	int size = 0;
 	int argcount = 0;
 	char *cp = ((char *)VMEM_1_LIMIT) - size;
-
 	char **cpp = (char **)
 		(((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
-
   	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
 	
-	uctxt->sp = cp2;
+	idleUctxt->sp = cp2;
 #ifdef LINUX
-	uctxt->ebp = cp2;
+	idleUctxt->ebp = cp2;
 #endif
-
-	uctxt->pc = DoIdle;
+	idleUctxt->pc = DoIdle;
 	
 	// idle process is the only process that is not initialized with initProcess 
 	// (found in Scheduler.c)
 	idlePCB = (PCB_t *) malloc(sizeof(PCB_t));
-	idlePCB->pid = 0; 
-	idlePCB->r1PageTable = r1PageTable;
-	idlePCB->uctxt = uctxt;
+	idlePCB->pid = 0;
+	idlePCB->r1PageTable = initializeRegionPageTable();
+	idlePCB->uctxt = idleUctxt;
 	idlePCB->numChildren = 0;
 	idlePCB->numRemainingDelayTicks = 0;
-	currPCB = idlePCB;
-
+	
     frame_t *newFrame;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
         if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
@@ -152,6 +149,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	WriteRegister(REG_PTBR1, (unsigned int) initPCB->r1PageTable);
 	LoadProgram(cmd_args[0], cmd_args, initPCB);
 	WriteRegister(REG_PTBR1, (unsigned int) idlePCB->r1PageTable);
+
+	currPCB = initPCB;
+
 	return;
 }
 

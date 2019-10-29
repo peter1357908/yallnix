@@ -19,7 +19,7 @@ void handleTrapClock(UserContext *uctxt) {
         initPCB->numRemainingDelayTicks--;
     }
     
-    if (currPCB->pid == idlePCB->pid && initPCB->numRemainingDelayTicks <= 0 ) {
+    if (currPCB->pid == idlePCB->pid) { // && initPCB->numRemainingDelayTicks <= 0 ) {
         if (KernelContextSwitch(MyKCS, idlePCB, initPCB) == ERROR) { 
             // print error message
             Halt();
