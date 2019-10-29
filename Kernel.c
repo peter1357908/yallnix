@@ -13,8 +13,8 @@ int numFrames;
 KernelContext *starterKctxt;
 
 // the following variables stores info for building the initial page table
-void *kernelDataStart;  // everything until this is READ and EXEC
-void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
+void *kernelDataStart;  
+void *currKernelBrk;  
 
 // initialize Interrupt Vector Array 
 void *interruptVectorArray[TRAP_VECTOR_SIZE];
@@ -95,7 +95,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		Halt();
 	}
 
-	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
 
 	if (initIdleProcess(idleR1PageTable) == ERROR) {
@@ -107,7 +106,13 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	}
 
 	WriteRegister(REG_PTBR1, (unsigned int) initPCB->r1PageTable);
-	LoadProgram(cmd_args[0], cmd_args, initPCB);
+	
+	if (LoadProgram(cmd_args[0], cmd_args, initPCB) == ERROR) {
+		Halt();
+	}
+
+	// mimic context switch
+	
 
 	currPCB = initPCB;
 
@@ -117,8 +122,17 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		Halt();
 	}
 
+	// NOTE: this is the code that runs after Context Switch
+	// do not modify
+
 	memmove(currPCB->kctxt, starterKctxt, sizeof(KernelContext));
 	memmove(uctxt, currPCB->uctxt, sizeof(KernelContext));
+
+	uctxt->sp = currPCB->uctxt->sp;
+	uctxt->pc = currPCB->uctxt->pc;
+#ifdef LINUX
+	uctxt->ebp = currPCB->uctxt->ebp;
+#endif
 
 	return;
 }

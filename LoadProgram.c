@@ -23,7 +23,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> for the process holding the new program.  
 {
   int fd;
-  // int (*entry)();  // what is this? Doesn't seem to be used.
+  int (*entry)();  
   struct load_info li;
   int i;
   char *cp;
