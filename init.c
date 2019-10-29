@@ -8,5 +8,7 @@
 // }
 
 void main(int argc, void *argv) {
-	return;
+	while(1) {
+		TracePrintf(1, "\nI'm the init process!\n");
+	}
 }

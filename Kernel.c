@@ -14,6 +14,9 @@ int numFrames;
 void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
 
+// initialize Interrupt Vector Array 
+void *interruptVectorArray[TRAP_VECTOR_SIZE];
+
 void DoIdle() {
 	while(1) {
 		TracePrintf(1, "DoIdle\n");
@@ -27,9 +30,7 @@ void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 }
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
-	
-	// initialize Interrupt Vector Array 
-    void *interruptVectorArray[TRAP_VECTOR_SIZE];
+
     interruptVectorArray[TRAP_KERNEL] = handleTrapKernel;
     interruptVectorArray[TRAP_CLOCK] = handleTrapClock;
 	interruptVectorArray[TRAP_ILLEGAL] = handleTrapIllegal;
@@ -39,6 +40,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     interruptVectorArray[TRAP_TTY_TRANSMIT] = handleTtyTransmit;
     interruptVectorArray[TRAP_DISK] = handleTrapDisk;
 	
+	TracePrintf(1, "\n%p\n", interruptVectorArray);
+
 	int i;
 	for (i = 8; i < TRAP_VECTOR_SIZE; i++) {
 		interruptVectorArray[i] = handleNothing;
@@ -129,25 +132,29 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	idlePCB->pid = 0; 
 	idlePCB->r1PageTable = r1PageTable;
 	idlePCB->uctxt = uctxt;
+	idlePCB->numChildren = 0;
+	idlePCB->numRemainingDelayTicks = 0;
+	currPCB = idlePCB;
+
+    frame_t *newFrame;
+    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
+        if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+            Halt();
+	    }
+        (idlePCB->stackPfns)[i] = (u_long) (newFrame->addr)>>PAGESHIFT;
+    }
 
 	// initialize and run the `init` process (via scheduler, given uctxt)
-	// PCB_t *initPCB;
-	// if (initProcess(&initPCB, uctxt) == ERROR) {
-	// 	Halt();
-	// }
-	// WriteRegister(REG_PTBR0, (unsigned int) initPCB->pagetable);
-	// WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
-	// WriteRegister(REG_PTBR1, (unsigned int) (initPCB->pagetable + MAX_PT_LEN)); 
-	// WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
-	// LoadProgram(cmd_args[0], cmd_args, initPCB);
+	if (initProcess(&initPCB) == ERROR) {
+		Halt();
+	}
+
+	WriteRegister(REG_PTBR1, (unsigned int) initPCB->r1PageTable);
+	LoadProgram(cmd_args[0], cmd_args, initPCB);
+	WriteRegister(REG_PTBR1, (unsigned int) idlePCB->r1PageTable);
 	return;
 }
 
-// see manual page 46
-/* special malloc (provided) will call this function to tell us about the heap segment
- * if it's before VM, we can safely assume that addr is higher than currKernelBrk (only malloc can call it)
- * if it's after VM, the procedure is analogous to KernelBrk() (since we can also call it)
- */
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
 	

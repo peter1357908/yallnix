@@ -109,6 +109,7 @@ all: $(ALL)
 clean:
 	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
+	killall yalnixtty
 
 count:
 	wc $(KERNEL_SRCS) $(USER_SRCS)

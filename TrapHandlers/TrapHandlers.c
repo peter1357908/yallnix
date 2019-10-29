@@ -3,6 +3,7 @@
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../KernelDataStructures/PageTable/PageTable.h"
 #include "../Kernel.h"
+#include "TrapHandlers.h"
 
 void handleTrapKernel(UserContext *uctxt) {
     // kernelCallNumber = uctxt->code
@@ -13,13 +14,23 @@ void handleTrapKernel(UserContext *uctxt) {
 
 void handleTrapClock(UserContext *uctxt) {
     // in the future, do this to all PCBs
-    if (currPCB->numRemainingDelayTicks > 0) {
-        currPCB->numRemainingDelayTicks--;
+    TracePrintf(1, "\nhandleTrapClock() called\n");
+    if (initPCB->numRemainingDelayTicks > 0) {
+        initPCB->numRemainingDelayTicks--;
     }
-    if (idlePCB->numRemainingDelayTicks > 0) {
-        idlePCB->numRemainingDelayTicks--;
+    
+    if (currPCB->pid == idlePCB->pid && initPCB->numRemainingDelayTicks <= 0 ) {
+        if (KernelContextSwitch(MyKCS, idlePCB, initPCB) == ERROR) { 
+            // print error message
+            Halt();
+        }
+    } 
+    else if (currPCB->pid == initPCB->pid) {
+        if (KernelContextSwitch(MyKCS, initPCB, idlePCB) == ERROR) { 
+            // print error message
+            Halt();
+        }
     }
-    // TODO: context switch between idle & init
 }
 
 void handleTrapIllegal(UserContext *uctxt) {

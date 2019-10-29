@@ -3,7 +3,7 @@
 #include "../Kernel.h"
 #include <yalnix.h>
 
-int Kernel_Fork(void) {
+int KernelFork(void) {
     // initialize new PCB for child (with new pid)
     // copy Parent's PCB variables:
         // region1Base, region1Limit, KernelStackBase, uctxt, kctxt
@@ -20,7 +20,11 @@ int Kernel_Fork(void) {
     // tell scheduler child is ready
 }
 
-int Kernel_Exec(char *filename, char **argvec) {
+void KernelExit(int status) {
+    
+}
+
+int KernelExec(char *filename, char **argvec) {
     // delete page table
     // remove currentProcess's PCB from blockedMap (it should be there)
     // delete old PCB
@@ -38,6 +42,7 @@ void KernelExit(int status) {
         // grab currentProcess PID
         // remove currentProcess from runningMap
         // add (PID, status) to Parent's ZombieQueue
+    TracePrintf(1, "Exit\n");
 }
 
 int KernelWait(int *status_ptr) {
@@ -60,7 +65,7 @@ int KernelGetPid(void) {
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
     void *brk = currPCB->brk;
-    struct pte *r1BasePtep = currPCB->pagetable + MAX_PT_LEN;
+    struct pte *r1BasePtep = currPCB->r1PageTable;
     struct pte *targetPtep;
     int currAddr;
     int vpn1 = (VMEM_1_BASE>>PAGESHIFT); // first page in VMEM_0
@@ -96,7 +101,17 @@ int KernelDelay(int clock_ticks){
         return ERROR;
     }
     currPCB->numRemainingDelayTicks = clock_ticks;
-    // TODO: context switch
+    
+    if (currPCB->pid == idlePCB->pid) {
+        if (KernelContextSwitch(MyKCS, idlePCB, initPCB) == ERROR) { 
+            return ERROR;
+        }
+    } 
+    else if (currPCB->pid == initPCB->pid) {
+        if (KernelContextSwitch(MyKCS, initPCB, idlePCB) == ERROR) { 
+            return ERROR;
+        }
+    }
     return 0;
 }
 

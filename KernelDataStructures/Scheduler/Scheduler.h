@@ -32,13 +32,17 @@ typedef struct PCB {
     unsigned int numChildren;
     struct PCB *parent; // -- currently only using this for KernelExit/KernelWait
 	struct pte *r1PageTable;
+    u_long stackPfns[KERNEL_STACK_MAXSIZE / PAGESIZE];
     unsigned int numRemainingDelayTicks;
 } PCB_t;
 
 PCB_t *currPCB;
 PCB_t *idlePCB;
+PCB_t *initPCB;
 
-int initProcess(PCB_t **, UserContext *uctxt);
+int initProcess(PCB_t **);
 
+
+KernelContext *MyKCS(KernelContext *kc_in, void *curr_pcb_b, void *next_pcb_p);
 
 #endif /*_Scheduler_h*/
