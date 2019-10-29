@@ -40,9 +40,11 @@ PCB_t *currPCB;
 PCB_t *idlePCB;
 PCB_t *initPCB;
 
-int initProcess(PCB_t **);
+int initIdleProcess(struct pte *idleR1PageTable);
 
+int initProcess(PCB_t **pcb);
 
+KernelContext *getStarterKctxt(KernelContext *currKctxt, void *pcb, void *nil);
 KernelContext *MyKCS(KernelContext *kc_in, void *curr_pcb_b, void *next_pcb_p);
 
 #endif /*_Scheduler_h*/

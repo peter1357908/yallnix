@@ -10,19 +10,14 @@
 frame_t *FrameList;
 int numFrames;
 
+KernelContext *starterKctxt;
+
 // the following variables stores info for building the initial page table
 void *kernelDataStart;  // everything until this is READ and EXEC
 void *currKernelBrk;  // everything from KernelDataStart until this is READ and WRITE
 
 // initialize Interrupt Vector Array 
 void *interruptVectorArray[TRAP_VECTOR_SIZE];
-
-void DoIdle() {
-	while(1) {
-		TracePrintf(1, "DoIdle\n");
-		Pause();
-	}
-}
 
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 	kernelDataStart = _KernelDataStart;
@@ -83,12 +78,15 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		currentPte++;
 	}	
 
-	struct pte *r1PageTable = initializeRegionPageTable();
+	struct pte *idleR1PageTable = initializeRegionPageTable();
 
 	// set MMU registers 
 	WriteRegister(REG_PTBR0, (unsigned int) r0PageTable);
 	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
-	WriteRegister(REG_PTBR1, (unsigned int) r1PageTable); 
+
+	// PTBR1 is initially idle's R1PageTable so we can enable VM 
+	// we switch PTBR1 to init's r1PageTable before KernelStart returns via KernelContextSwitch
+	WriteRegister(REG_PTBR1, (unsigned int) idleR1PageTable); 
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
 
 	// initialize FrameList; must happen after the pagetable is initialized and filled.
@@ -100,58 +98,28 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// enable virtual memory
 	WriteRegister(REG_VM_ENABLE, 1);
 
-	// initialize the userland stack, with one page of memory at the very top
-	struct pte *r1StackBasePtep = r1PageTable + MAX_PT_LEN - 1;
-	frame_t *r1StackBaseFrame;
-	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
+	if (initIdleProcess(idleR1PageTable) == ERROR) {
 		Halt();
 	}
-	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
-		
-	// initialize the idle process by manipulating uctxt like in LoadProgram
-	// DoIdle() has no arguments and needs no arguments
-	int size = 0;
-	int argcount = 0;
-	char *cp = ((char *)VMEM_1_LIMIT) - size;
 
-	char **cpp = (char **)
-		(((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
-
-  	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
-	
-	uctxt->sp = cp2;
-#ifdef LINUX
-	uctxt->ebp = cp2;
-#endif
-
-	uctxt->pc = DoIdle;
-	
-	// idle process is the only process that is not initialized with initProcess 
-	// (found in Scheduler.c)
-	idlePCB = (PCB_t *) malloc(sizeof(PCB_t));
-	idlePCB->pid = 0; 
-	idlePCB->r1PageTable = r1PageTable;
-	idlePCB->uctxt = uctxt;
-	idlePCB->numChildren = 0;
-	idlePCB->numRemainingDelayTicks = 0;
-	currPCB = idlePCB;
-
-    frame_t *newFrame;
-    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
-        if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
-            Halt();
-	    }
-        (idlePCB->stackPfns)[i] = (u_long) (newFrame->addr)>>PAGESHIFT;
-    }
-
-	// initialize and run the `init` process (via scheduler, given uctxt)
 	if (initProcess(&initPCB) == ERROR) {
 		Halt();
 	}
 
 	WriteRegister(REG_PTBR1, (unsigned int) initPCB->r1PageTable);
 	LoadProgram(cmd_args[0], cmd_args, initPCB);
-	WriteRegister(REG_PTBR1, (unsigned int) idlePCB->r1PageTable);
+
+	currPCB = initPCB;
+
+	starterKctxt = (KernelContext *) malloc(sizeof(KernelContext));
+	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) { 
+		// print error message
+		Halt();
+	}
+
+	memmove(currPCB->kctxt, starterKctxt, sizeof(KernelContext));
+	memmove(uctxt, currPCB->uctxt, sizeof(KernelContext));
+
 	return;
 }
 
