@@ -114,6 +114,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	// record the current kernel stack as starterKernelStack
 	starterKernelStack = (void *) malloc(sizeof(KERNEL_STACK_MAXSIZE));
+	if (starterKernelStack == NULL) {
+		Halt();
+	}
 	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
 	
 	/* Record the current kernel context as starterKctxt
@@ -121,11 +124,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	 * the first time that process is context-switched into.
 	 */
 	starterKctxt = (KernelContext *) malloc(sizeof(KernelContext));
+	if (starterKctxt == NULL) {
+		Halt();
+	}
 	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) {
 		Halt();
 	}	
 	
-	/* ------------ all new-process-to-run-next starts here ------------*/
+	/* ------------ every new-process-to-run-next starts here ------------*/
 	
 	memmove(uctxt, currPCB->uctxt, sizeof(UserContext));
 

@@ -1,5 +1,6 @@
 #include "Scheduler.h"
 #include <yalnix.h>
+#include <hardware.h>  
 #include <stdio.h>
 #include <string.h>
 #include "../PageTable/PageTable.h"
@@ -19,7 +20,18 @@ int initInitProcess(struct pte *initR1PageTable) {
 
     initPCB->pid = nextPid++;
     initPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
-    initPCB->kctxt = NULL;
+	if (initPCB->uctxt == NULL) {
+        return ERROR;
+    }
+	
+	/* NOTE: the init's kctxt will be given when it gets context-switched out,
+	 * but we have to first allocate enough memory to hold that kctxt.
+	 */
+    initPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
+	if (initPCB->kctxt == NULL) {
+		return ERROR;
+	}
+	
     initPCB->numChildren = 0;
     initPCB->r1PageTable = initR1PageTable;
     initPCB->numRemainingDelayTicks = 0;
@@ -45,6 +57,9 @@ int initProcess(PCB_t **pcb) {
 
     newPCB->pid = nextPid++;
     newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
+	if (newPCB->uctxt == NULL) {
+        return ERROR;
+    }
     newPCB->kctxt = NULL;
     newPCB->numChildren = 0;
     newPCB->r1PageTable = initializeRegionPageTable();
@@ -72,10 +87,6 @@ KernelContext *getStarterKctxt(KernelContext *currKctxt, void *starterKctxt, voi
 }
 
 
-/* NOTE: by the time we would switch back into "init", initPCB->kctxt is no longer NULL,
- * so it won't be treated as a new process, as intended. This is because "init" will be the
- * first process to get context-switched out of, and MyKCS will populate its kctxt then.
- */
 KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP , void *nextPcbP) {
 	TracePrintf(1, "MyKCS called\n");
 	

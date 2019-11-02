@@ -3,7 +3,7 @@
 
 #include "KernelDataStructures/Scheduler/Scheduler.h"
 
-// assumes that initProcess(&proc) is called beforehand;
+// assumes that proc is already initialized and the MMU points to its r1PageTable
 int LoadProgram(char *name, char *args[], PCB_t *proc);
 
 // assumes that initProcess(&idlePCB) is called beforehand;
