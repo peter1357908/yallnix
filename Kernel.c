@@ -101,7 +101,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		Halt();
 	}
 	
-	// per page 61, we default to "init" with no arguments if cmd_args == NULL
+	// per page 61, we default to "init" with no arguments if cmg_args[0] == NULL
 	if (cmd_args[0] == NULL) {
 		char* default_args[] = {"init", NULL};
 		cmd_args = default_args;
