@@ -36,13 +36,25 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
 
-	// initialize the first pagetable (for the idle process)
+	// initialize the general r0PageTable (whose stack is for "init")
 	struct pte *r0PageTable = initializeRegionPageTable();
+		
+	/* initialize an r1PageTable so we can enable VM; that page table will be
+	 * for the first ever process to run (i.e. "init")
+	 */
+	struct pte *initR1PageTable = initializeRegionPageTable();
 	struct pte *currentPte = r0PageTable;
-
-	int addr;
-
+	
+	// initialize FrameList; must happen after the pagetables are initialized.
+	numFrames = pmem_size / PAGESIZE;
+	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
+		Halt();
+	}
+	
+	/* ------ no more malloc(), starting here, until VM is enabled!! ------ */
+	
 	// fill the pagetable according to the current kernel state
+	int addr;
 	for (addr = VMEM_BASE; addr < VMEM_0_LIMIT; addr += PAGESIZE) {
 		u_long prot;
 
@@ -67,25 +79,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		
 		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
 		currentPte++;
-	}	
+	}
 	
-	/* initialize an r1PageTable so we can enable VM; that page table will be
-	 * for the first ever process to run (i.e. "init")
-	 */
-	struct pte *initR1PageTable = initializeRegionPageTable();
-
-	// set MMU registers 
+	// set MMU registers and enable VM
 	WriteRegister(REG_PTBR0, (unsigned int) r0PageTable);
 	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN);
 	WriteRegister(REG_PTBR1, (unsigned int) initR1PageTable);
 	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN);
-
-	// initialize FrameList; must happen after the pagetables are initialized.
-	numFrames = pmem_size / PAGESIZE;
-	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
-		Halt();
-	}
-
+	
 	WriteRegister(REG_VM_ENABLE, 1);
 	
 	/* initialization logic: "init" requires special initialization because
