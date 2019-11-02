@@ -121,10 +121,10 @@ kill:
 	killall yalnixtty yalnixnet yalnix
 	
 test: all
-	yalnix -t -lk 1 init
+	yalnix -t -lk 1 -lu 1 init
 	
 gdb: all
-	gdb --args yalnix -t -lk 1 init
+	gdb --args yalnix -t -lk 1 -lu 1 init
 
 no-core:
 	rm -f core.*
