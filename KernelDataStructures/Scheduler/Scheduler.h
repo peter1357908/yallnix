@@ -21,6 +21,7 @@
 
 #ifndef _Scheduler_h
 #define _Scheduler_h
+
 #include <hardware.h>
 
 typedef struct PCB {
@@ -40,11 +41,11 @@ PCB_t *currPCB;
 PCB_t *idlePCB;
 PCB_t *initPCB;
 
-int initIdleProcess(struct pte *idleR1PageTable);
+int initInitProcess(struct pte *initR1PageTable);
 
 int initProcess(PCB_t **pcb);
 
 KernelContext *getStarterKctxt(KernelContext *currKctxt, void *pcb, void *nil);
-KernelContext *MyKCS(KernelContext *kc_in, void *curr_pcb_b, void *next_pcb_p);
+KernelContext *MyKCS(KernelContext *kc_in, void *currPcbP , void *nextPcbP);
 
 #endif /*_Scheduler_h*/

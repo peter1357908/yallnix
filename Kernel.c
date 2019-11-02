@@ -6,17 +6,9 @@
 #include "KernelDataStructures/FrameList/FrameList.h"
 #include "KernelDataStructures/Scheduler/Scheduler.h"
 #include "LoadProgram.h"
+#include "Kernel.h"
 
-frame_t *FrameList;
-int numFrames;
-
-KernelContext *starterKctxt;
-
-// the following variables stores info for building the initial page table
-void *kernelDataStart;  
-void *currKernelBrk;  
-
-// initialize Interrupt Vector Array 
+// create the Interrupt Vector Array globally (instead of inside KernelStart)
 void *interruptVectorArray[TRAP_VECTOR_SIZE];
 
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
@@ -25,7 +17,6 @@ void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 }
 
 void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
-
     interruptVectorArray[TRAP_KERNEL] = handleTrapKernel;
     interruptVectorArray[TRAP_CLOCK] = handleTrapClock;
 	interruptVectorArray[TRAP_ILLEGAL] = handleTrapIllegal;
@@ -38,7 +29,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	TracePrintf(1, "\n%p\n", interruptVectorArray);
 
 	int i;
-	for (i = 8; i < TRAP_VECTOR_SIZE; i++) {
+	for (i = TRAP_DISK + 1; i < TRAP_VECTOR_SIZE; i++) {
 		interruptVectorArray[i] = handleNothing;
 	}
 
@@ -77,62 +68,66 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
 		currentPte++;
 	}	
-
-	struct pte *idleR1PageTable = initializeRegionPageTable();
+	
+	/* initialize an r1PageTable so we can enable VM; that page table will be
+	 * for the first ever process to run (i.e. "init")
+	 */
+	struct pte *initR1PageTable = initializeRegionPageTable();
 
 	// set MMU registers 
 	WriteRegister(REG_PTBR0, (unsigned int) r0PageTable);
-	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN); 
+	WriteRegister(REG_PTLR0, (unsigned int) MAX_PT_LEN);
+	WriteRegister(REG_PTBR1, (unsigned int) initR1PageTable);
+	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN);
 
-	// PTBR1 is initially idle's R1PageTable so we can enable VM 
-	// we switch PTBR1 to init's r1PageTable before KernelStart returns via KernelContextSwitch
-	WriteRegister(REG_PTBR1, (unsigned int) idleR1PageTable); 
-	WriteRegister(REG_PTLR1, (unsigned int) MAX_PT_LEN); 
-
-	// initialize FrameList; must happen after the pagetable is initialized and filled.
+	// initialize FrameList; must happen after the pagetables are initialized.
 	numFrames = pmem_size / PAGESIZE;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
 	}
 
 	WriteRegister(REG_VM_ENABLE, 1);
-
-	if (initIdleProcess(idleR1PageTable) == ERROR) {
-		Halt();
-	}
-
-	if (initProcess(&initPCB) == ERROR) {
-		Halt();
-	}
-
-	WriteRegister(REG_PTBR1, (unsigned int) initPCB->r1PageTable);
 	
-	if (LoadProgram(cmd_args[0], cmd_args, initPCB) == ERROR) {
+	/* initialization logic: "init" requires special initialization because
+	 * its kernel stack is the same as the current kernel stack, and its
+	 * r1PageTable is already initialized as initR1PageTable; while "idle"
+	 * will be initialized as any future new process. However, for "idle" to run, 
+	 * we need to manually "load" DoIdle() instead of relying on LoadProgram().
+	 * Consequently, we make a special initInitProcess() and a special LoadIdle() while using
+	 * the regular LoadProgram() for "init," and the regular initProcess() for "idle"
+	 */
+	
+	if (initProcess(&idlePCB) == ERROR || LoadIdle() == ERROR) {
+		Halt();
+	}
+	
+	if (initInitProcess(initR1PageTable) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) == ERROR) {
 		Halt();
 	}
 
-	// mimic context switch
-	
-
+	// mimic context switch, as if switching into the "init" process
 	currPCB = initPCB;
-
+	
+	// no need to switch kernel stack, since init already uses the current kernel stack
+	
+	// no need to change MMU registers since REG_PTBR1 already points to initR1PageTable
+	
+	// record the current kernel stack as starterKernelStack
+	starterKernelStack = (void *) malloc(sizeof(KERNEL_STACK_MAXSIZE));
+	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
+	
+	/* Record the current kernel context as starterKctxt
+	 * NOTE: the code after getStarterKctxt runs for every freshly initialized process
+	 * the first time that process is context-switched into.
+	 */
 	starterKctxt = (KernelContext *) malloc(sizeof(KernelContext));
-	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) { 
-		// print error message
+	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) {
 		Halt();
-	}
-
-	// NOTE: this is the code that runs after Context Switch
-	// do not modify
-
-	memmove(currPCB->kctxt, starterKctxt, sizeof(KernelContext));
-	memmove(uctxt, currPCB->uctxt, sizeof(KernelContext));
-
-	uctxt->sp = currPCB->uctxt->sp;
-	uctxt->pc = currPCB->uctxt->pc;
-#ifdef LINUX
-	uctxt->ebp = currPCB->uctxt->ebp;
-#endif
+	}	
+	
+	/* ------------ all new-process-to-run-next starts here ------------*/
+	
+	memmove(uctxt, currPCB->uctxt, sizeof(UserContext));
 
 	return;
 }

@@ -6,56 +6,33 @@
 #include "../FrameList/FrameList.h"
 #include "../../Kernel.h"
 
+#define KERNEL_STACK_BASE_VPN  (KERNEL_STACK_BASE >> PAGESHIFT)
+#define KERNEL_BASE_VPN  (VMEM_0_BASE >> PAGESHIFT)
+
 int nextPid = 0; 
 
-void DoIdle() {
-	while(1) {
-		TracePrintf(1, "DoIdle\n");
-		Pause();
-	}
-}
-
-int initIdleProcess(struct pte *r1PageTable) {
-    idlePCB = (PCB_t *) malloc(sizeof(PCB_t));
-    if (idlePCB == NULL) {
+int initInitProcess(struct pte *initR1PageTable) {
+    initPCB = (PCB_t *) malloc(sizeof(PCB_t));
+    if (initPCB == NULL) {
         return ERROR;
     }
 
-    idlePCB->pid = nextPid++;
-    idlePCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
-    idlePCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
-    idlePCB->numChildren = 0;
-    idlePCB->r1PageTable = r1PageTable;
-    idlePCB->numRemainingDelayTicks = 0;
-
-    int i;
-    frame_t *newFrame;
+    initPCB->pid = nextPid++;
+    initPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
+    initPCB->kctxt = NULL;
+    initPCB->numChildren = 0;
+    initPCB->r1PageTable = initR1PageTable;
+    initPCB->numRemainingDelayTicks = 0;
+	
+	// calculate r0StackBasePtep;
+    struct pte *r0StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
+    struct pte *currPtep = r0StackBasePtep;
+    
+	int i;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
-        if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
-            return ERROR;
-	    }
-        (idlePCB->stackPfns)[i] = (u_long) (newFrame->addr)>>PAGESHIFT;
-    }
-
-	struct pte *r1StackBasePtep = idlePCB->r1PageTable + MAX_PT_LEN - 1;
-	frame_t *r1StackBaseFrame;
-	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
-		return ERROR;
+		(initPCB->stackPfns)[i] = currPtep->pfn;
+		currPtep++;
 	}
-	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
-
-
-    int size = 0;
-	int argcount = 0;
-	char *cp = ((char *) VMEM_1_LIMIT) - size;
-	char **cpp = (char **) (((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
-  	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
-
-    idlePCB->uctxt->sp = cp2;
-	idlePCB->uctxt->pc = DoIdle;
-#ifdef LINUX
-	idlePCB->uctxt->ebp = cp2;
-#endif
     
     return 0;
 }
@@ -68,7 +45,7 @@ int initProcess(PCB_t **pcb) {
 
     newPCB->pid = nextPid++;
     newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
-    newPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
+    newPCB->kctxt = NULL;
     newPCB->numChildren = 0;
     newPCB->r1PageTable = initializeRegionPageTable();
     newPCB->numRemainingDelayTicks = 0;
@@ -79,7 +56,7 @@ int initProcess(PCB_t **pcb) {
         if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
             return ERROR;
 	    }
-        (newPCB->stackPfns)[i] = (u_long) (newFrame->addr)>>PAGESHIFT;
+        (newPCB->stackPfns)[i] = (u_long) ((int) (newFrame->addr)>>PAGESHIFT);
     }
 
     *pcb = newPCB;
@@ -88,32 +65,51 @@ int initProcess(PCB_t **pcb) {
 
 // NOTE: we don't use nil, but we need it to match KernelContextSwitch's desired signature
 KernelContext *getStarterKctxt(KernelContext *currKctxt, void *starterKctxt, void *nil) {
+	TracePrintf(1, "getStarterKctxt called\n");
+	
     memmove((KernelContext *) starterKctxt, currKctxt, sizeof(KernelContext));
     return (KernelContext *) starterKctxt;
 }
 
+
+/* NOTE: by the time we would switch back into "init", initPCB->kctxt is no longer NULL,
+ * so it won't be treated as a new process, as intended. This is because "init" will be the
+ * first process to get context-switched out of, and MyKCS will populate its kctxt then.
+ */
 KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP , void *nextPcbP) {
-    // switch kernel stack
-    int r0StackBaseVpn = KERNEL_STACK_BASE>>PAGESHIFT;
-    int r0BaseVpn = VMEM_0_BASE>>PAGESHIFT;
-    struct pte *r0StackBasePtep = (struct pte *) ReadRegister(REG_PTBR0) + r0StackBaseVpn - r0BaseVpn;
-    struct pte *currPte = r0StackBasePtep;
+	TracePrintf(1, "MyKCS called\n");
+	
+    // copy kctxt into currPcbP (after this, no more operation on currPcbP)
+	// TODO: is "currPcbP" always the same as "currPCB"?
+    memmove((((PCB_t *) currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
+
+    // set the global currPCB to be the PCB for the next process
+    currPCB = (PCB_t *) nextPcbP;
+	
+	// switch kernel stack, populate PTEs from r0StackBase to r0StackLimit
+	struct pte *r0StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
+    struct pte *currPtep = r0StackBasePtep;
+	
     int i;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
         // NOTE: kernel stack PTEs are flushed inside setPageTableEntry() method
-        setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), (((PCB_t *) nextPcbP)->stackPfns)[i]);
-        currPte++;
-    } 
+        setPageTableEntry(currPtep, 1, (PROT_READ|PROT_WRITE), (currPCB->stackPfns)[i]);
+        currPtep++;
+    }
 
+	/* if the currPCB (nextPcbP) is a new process, copy into it the starter kernel context
+	 * and the starter kernel stack (must happen after kernel stack switching)
+	 */ 
+	if (currPCB->kctxt == NULL) {
+		currPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
+		memmove(currPCB->kctxt, starterKctxt, sizeof(KernelContext));
+		memmove((void *) KERNEL_STACK_BASE, starterKernelStack, KERNEL_STACK_MAXSIZE);
+	}
+	
     // change MMU registers for R1 & flush R1 TLB
     WriteRegister(REG_PTBR1, (unsigned int) ((PCB_t *) nextPcbP)->r1PageTable);
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
-
-    // set currPCB
-    currPCB = (PCB_t *) nextPcbP;
-
-    // copy kctxt into currPcbP
-    memmove((((PCB_t *)currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
+	
     // return pointer to kctxt of nextPcbP
-    return ((PCB_t *) nextPcbP)->kctxt;
+    return currPCB->kctxt;
 }

@@ -320,3 +320,40 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
   return SUCCESS;
 }
 
+
+// only used in LoadIdle
+void DoIdle() {
+	while(1) {
+		TracePrintf(1, "DoIdle\n");
+		Pause();
+	}
+}
+
+
+int LoadIdle()
+{
+	/* mimics LoadProgram(); nothing will be actually written into the r1Stack,
+	 * so there is no need to swtich MMU registers.
+	 */
+	
+	struct pte *r1StackBasePtep = idlePCB->r1PageTable + MAX_PT_LEN - 1;
+	frame_t *r1StackBaseFrame;
+	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
+		return ERROR;
+	}
+	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
+
+	int size = 0;
+	int argcount = 0;
+	char *cp = ((char *) VMEM_1_LIMIT) - size;
+	char **cpp = (char **) (((int)cp - ((argcount + 3 + POST_ARGV_NULL_SPACE) *sizeof (void *))) & ~7);
+  	char *cp2 = (caddr_t)cpp - INITIAL_STACK_FRAME_SIZE;
+
+    idlePCB->uctxt->sp = cp2;
+	idlePCB->uctxt->pc = DoIdle;
+#ifdef LINUX
+	idlePCB->uctxt->ebp = cp2;
+#endif
+	
+	return 0;
+}

@@ -44,6 +44,9 @@ int itemCount; // use this for lock, cvar, and pipe ids
 frame_t *FrameList;
 int numFrames;
 
+KernelContext *starterKctxt;
+void *starterKernelStack;
+
 void *kernelDataStart;  
 void *currKernelBrk;  
 

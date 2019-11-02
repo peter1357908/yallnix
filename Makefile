@@ -99,6 +99,7 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 # count: count and give info on source files
 # list: list all c files and header files in current directory
 # kill: close tty windows.  Useful if program crashes without closing tty windows.
+# test: start yalnix with init and trace level 1.
 # $(KERNEL_ALL): compile and link kernel files
 # $(USER_ALL): compile and link user files
 # %.o: %.c: rules for setting up dependencies.  Don't use this directly
@@ -109,7 +110,6 @@ all: $(ALL)
 clean:
 	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
-	killall yalnixtty
 
 count:
 	wc $(KERNEL_SRCS) $(USER_SRCS)
@@ -119,6 +119,9 @@ list:
 
 kill:
 	killall yalnixtty yalnixnet yalnix
+	
+test:
+	./yalnix -t -lk 1 init
 
 no-core:
 	rm -f core.*
