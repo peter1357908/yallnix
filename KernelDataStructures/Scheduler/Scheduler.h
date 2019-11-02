@@ -29,7 +29,6 @@ typedef struct PCB {
     void *brk;
     UserContext *uctxt;
     KernelContext *kctxt;
-    // ZombieQueue *zq;
     unsigned int numChildren;
     struct PCB *parent; // -- currently only using this for KernelExit/KernelWait
 	struct pte *r1PageTable;

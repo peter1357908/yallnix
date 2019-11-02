@@ -119,20 +119,18 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	// no need to change MMU registers since REG_PTBR1 already points to initR1PageTable
 	
-	// record the current kernel stack as starterKernelStack
+	// allocate memory for starterKernelStack and starterKctxt
 	starterKernelStack = (void *) malloc(sizeof(KERNEL_STACK_MAXSIZE));
 	if (starterKernelStack == NULL) {
 		Halt();
 	}
-	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
-	
-	// Record the current kernel context as starterKctxt
 	starterKctxt = (KernelContext *) malloc(sizeof(KernelContext));
 	if (starterKctxt == NULL) {
 		Halt();
 	}
 	
-	/* ------------ every new-process-to-run-next starts here ------------*/
+	/* ------------ every new-process-to-run-next starts here ------------ */
+	/* ------------ current Kctxt and Kernel Stack are copied ------------ */
 	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) {
 		Halt();
 	}
@@ -150,7 +148,7 @@ int SetKernelBrk(void *addr) {
 		return ERROR;
 	}
 	
-	// update page table if we're in VM
+	// update page table if we're in virtual memory mode
 	if (isVM == 1) {
 		struct pte *r0PageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte *targetPtep;
@@ -168,7 +166,7 @@ int SetKernelBrk(void *addr) {
 		}
 	
 		// if addr higher than currKernelBrk, validate pages and allocate frames accordingly
-		else {
+		else if ((int) addr > (int) currKernelBrk) {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				frame_t *newFrame;

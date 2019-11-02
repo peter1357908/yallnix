@@ -78,17 +78,18 @@ int initProcess(PCB_t **pcb) {
     return 0;
 }
 
-// NOTE: we don't use nil, but we need it to match KernelContextSwitch's desired signature
-KernelContext *getStarterKctxt(KernelContext *currKctxt, void *starterKctxt, void *nil) {
-	TracePrintf(1, "getStarterKctxt called\n");
+
+KernelContext *getStarterKctxt(KernelContext *currKctxt, void *nil0, void *nil1) {
+	TracePrintf(1, "getStarterKctxt called, currPCB->pid = %d\n", currPCB->pid);
 	
-    memmove((KernelContext *) starterKctxt, currKctxt, sizeof(KernelContext));
-    return (KernelContext *) starterKctxt;
+	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
+    memmove(starterKctxt, currKctxt, sizeof(KernelContext));
+    return starterKctxt;
 }
 
 
-KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP , void *nextPcbP) {
-	TracePrintf(1, "MyKCS called\n");
+KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
+	TracePrintf(1, "MyKCS called, currPCB->pid = %d\n", currPCB->pid);
 	
     // copy kctxt into currPcbP (after this, no more operation on currPcbP)
 	// TODO: is "currPcbP" always the same as "currPCB"?
