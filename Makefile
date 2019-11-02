@@ -34,7 +34,6 @@ SET_DS = $(GENERAL_DATA_STRUCTURES)/HashMap/set
 TRAP_HANDLERS = TrapHandlers/TrapHandlers
 LOAD_PROGRAM = LoadProgram
 
-
 #List all kernel source files here.  
 KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
@@ -120,11 +119,13 @@ list:
 kill:
 	killall yalnixtty yalnixnet yalnix
 	
+TEST_FLAGS = -t -lk 1 -lh 2 -lu 1
+	
 test: all
-	yalnix -t -lk 1 -lu 1
+	yalnix $(TEST_FLAGS)
 	
 gdb: all
-	gdb --args yalnix -t -lk 1 -lu 1
+	gdb --args yalnix $(TEST_FLAGS)
 
 no-core:
 	rm -f core.*
