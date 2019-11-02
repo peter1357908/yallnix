@@ -101,6 +101,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		Halt();
 	}
 	
+	// per page 61, we default to "init" with no arguments if cmd_args == NULL
+	if (cmd_args[0] == NULL) {
+		char* default_args[] = {"init", NULL};
+		cmd_args = default_args;
+	}
+	
 	if (initInitProcess(initR1PageTable) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) == ERROR) {
 		Halt();
 	}
@@ -128,7 +134,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	/* ------------ every new-process-to-run-next starts here ------------*/
 	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) {
 		Halt();
-	}	
+	}
 	
 	memmove(uctxt, currPCB->uctxt, sizeof(UserContext));
 
