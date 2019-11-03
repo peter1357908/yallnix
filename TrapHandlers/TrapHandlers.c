@@ -4,12 +4,56 @@
 #include "../KernelDataStructures/PageTable/PageTable.h"
 #include "../Kernel.h"
 #include "TrapHandlers.h"
+#include "../KernelCalls/KernelCalls.h"
 
 void handleTrapKernel(UserContext *uctxt) {
     // kernelCallNumber = uctxt->code
     /* use kernelCallNumber to call corresponding syscall function
        inside syscall vector array
-    */
+    // */
+    // switch(uctxt->code) {
+    //     case YALNIX_FORK:
+    //         KernelFork();
+    //     case YALNIX_EXEC:
+    //         KernelExec();
+    //     case YALNIX_EXIT:
+    //         KernelExit();
+    //     case YALNIX_WAIT:
+    //         KernelWait();
+    //     case YALNIX_GETPID:
+    //         KernelGetPid();
+    //     case YALNIX_BRK:
+    //         KernelBrk();
+    //     case YALNIX_DELAY:
+    //         KernelDelay();
+    //     case YALNIX_TTY_READ:
+    //         KernelTtyRead();
+    //     case YALNIX_TTY_WRITE:
+    //         KernelTtyWrite();
+
+    //     #ifdef LINUX
+    //     case YALNIX_LOCK_INIT:
+    //         KernelLockInit();
+    //     case YALNIX_LOCK_ACQUIRE:   
+    //         KernelLockAcquire();
+    //     case YALNIX_LOCK_RELEASE:
+    //         KernelLockRelease();
+    //     case YALNIX_CVAR_INIT:
+    //         KernelCvarInit();
+    //     case YALNIX_CVAR_SIGNAL:
+    //         KernelCvarSignal();
+    //     case YALNIX_CVAR_BROADCAST:
+    //         KernelCvarBroadcast();
+    //     case YALNIX_CVAR_WAIT:
+    //         kernelCvarWait();
+    //     case YALNIX_PIPE_INIT:
+    //         KernelPipeInit();
+    //     case YALNIX_PIPE_READ:
+    //         KernelPipeRead();
+    //     case YALNIX_PIPE_WRITE: 
+    //         KernelPipeWrite();
+    //     #endif
+    // }
 }
 
 void handleTrapClock(UserContext *uctxt) {
