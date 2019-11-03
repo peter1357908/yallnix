@@ -164,8 +164,8 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
    */
 
   struct pte *pageTableR1Base = proc->r1PageTable;
-  struct pte *currentPte = pageTableR1Base;
-  frame_t *newFrame;
+  struct pte *currentPtep = pageTableR1Base;
+  u_long pfn;
 // ==>> Throw away the old region 1 virtual address space of the
 // ==>> curent process by freeing
 // ==>> all physical pages currently mapped to region 1, and setting all 
@@ -178,13 +178,13 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> deallocate a few pages to fit the size of memory to the requirements
 // ==>> of the new process.
 
-  // TODO: test when we pass in a PCB with a previously filled region 1 virtual address space
+  // NOTE: this is different from freePageTable, since the PT itself won't be freed
   for (i = 0; i < MAX_PT_LEN; i++) {
-      if (currentPte->valid == 1) {
-        freeFrame(FrameList, numFrames, currentPte->pfn);
-        invalidatePageTableEntry(currentPte);
+      if (currentPtep->valid == 1) {
+        freeFrame(FrameList, numFrames, currentPtep->pfn);
+        invalidatePageTableEntry(currentPtep);
       }
-      currentPte++;
+      currentPtep++;
   }
 
 // ==>> Allocate "li.t_npg" physical pages and map them starting at
@@ -192,13 +192,13 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> These pages should be marked valid, with a protection of 
 // ==>> (PROT_READ | PROT_WRITE).
 
-  currentPte = pageTableR1Base + text_pg1;
+  currentPtep = pageTableR1Base + text_pg1;
   for (i = 0; i < li.t_npg; i++) { 
-      if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+      if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
         return KILL;
       }
-      setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
-      currentPte++;
+      setPageTableEntry(currentPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+      currentPtep++;
   }
 
 // ==>> Allocate "data_npg" physical pages and map them starting at
@@ -206,13 +206,13 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> These pages should be marked valid, with a protection of 
 // ==>> (PROT_READ | PROT_WRITE).
 
-  currentPte = pageTableR1Base + data_pg1;
+  currentPtep = pageTableR1Base + data_pg1;
   for (i = 0; i < data_npg; i++) {
-      if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+      if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
         return KILL;
       }
-      setPageTableEntry(currentPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
-      currentPte++;
+      setPageTableEntry(currentPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+      currentPtep++;
   }
 
   /*
@@ -227,10 +227,10 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 	struct pte *currentStackPte = pageTableR1Base + MAX_PT_LEN - stack_npg;
 
   for (i = 0; i < stack_npg; i++) {
-    if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+    if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
       return KILL;
     }
-    setPageTableEntry(currentStackPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+    setPageTableEntry(currentStackPte, 1, (PROT_READ|PROT_WRITE), pfn);
     currentStackPte++;
   }
 
@@ -276,10 +276,10 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> into the TLB.  It's nice for the TLB and the page tables to remain
 // ==>> consistent.
 
-  currentPte = pageTableR1Base + text_pg1;
-  for (i = 0; i < li.t_npg; i++) { 
-      setPageTableEntry(currentPte, currentPte->valid, (PROT_READ|PROT_EXEC), currentPte->pfn);
-      currentPte++;
+  currentPtep = pageTableR1Base + text_pg1;
+  for (i = 0; i < li.t_npg; i++) {
+      setPageTableEntry(currentPtep, currentPtep->valid, (PROT_READ|PROT_EXEC), currentPtep->pfn);
+      currentPtep++;
   }
 
   close(fd);			/* we've read it all now */
@@ -337,11 +337,11 @@ int LoadIdle()
 	 */
 	
 	struct pte *r1StackBasePtep = idlePCB->r1PageTable + MAX_PT_LEN - 1;
-	frame_t *r1StackBaseFrame;
-	if (getFrame(FrameList, numFrames, &r1StackBaseFrame) == ERROR) {
+	u_long r1StackBasePfn;
+	if (getFrame(FrameList, numFrames, &r1StackBasePfn) == ERROR) {
 		return ERROR;
 	}
-	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, (int) (r1StackBaseFrame->addr)>>PAGESHIFT);
+	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, r1StackBasePfn);
 
 	int size = 0;
 	int argcount = 0;

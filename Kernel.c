@@ -45,7 +45,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	struct pte *initR1PageTable = initializeRegionPageTable();
 	struct pte *currentPte = r0PageTable;
 	
-	// initialize FrameList; must happen after the pagetables are initialized.
+	/* initialize FrameList; must happen after the pagetables are initialized,
+	 * and before the r0PageTable is filled.
+	 */
 	numFrames = pmem_size / PAGESIZE;
 	if (initFrameList(&FrameList, numFrames, currKernelBrk) == ERROR) {
 		Halt();
@@ -53,7 +55,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	/* ------ no more malloc(), starting here, until VM is enabled!! ------ */
 	
-	// fill the pagetable according to the current kernel state
+	// fill the r0PageTable according to the current kernel state
 	int addr;
 	for (addr = VMEM_BASE; addr < VMEM_0_LIMIT; addr += PAGESIZE) {
 		u_long prot;
@@ -61,7 +63,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		// r/e for text; the last segment before each cutoff may be an incomplete page (why does the code below work?)
 		if (addr + PAGESIZE <= (int) kernelDataStart) {
 			prot = (PROT_READ|PROT_EXEC);
-		} 
+		}
 		// r/w for data/heap
 		else if (addr + PAGESIZE <= (int) currKernelBrk) {
 			prot = (PROT_READ|PROT_WRITE);
@@ -169,12 +171,12 @@ int SetKernelBrk(void *addr) {
 		else if ((int) addr > (int) currKernelBrk) {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
-				frame_t *newFrame;
-				if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+				u_long pfn;
+				if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
 					return ERROR;
 				}
 				targetPtep = r0PageTable + vpn - vpn0;
-				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
 			}
 		}
 	}

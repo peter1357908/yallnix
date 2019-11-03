@@ -4,29 +4,28 @@
 #include <hardware.h>
 
 int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk) {	
-	*FrameListp = malloc(numFrames * sizeof(frame_t));
+	*FrameListp = (frame_t *) malloc(sizeof(frame_t) * numFrames);
     if (*FrameListp == NULL) {
         return ERROR;
     }
 	
 	frame_t *currFrame = *FrameListp;
-	void* frameAddr = (void *) PMEM_BASE;
+	int frameAddr = PMEM_BASE;
 	int i;
 	for (i = 0; i < numFrames; i++) {
-		currFrame->addr = frameAddr;
-		if (((int) frameAddr < (int) currKernelBrk) || (KERNEL_STACK_BASE <= (int) frameAddr && (int) frameAddr < KERNEL_STACK_LIMIT)) {
+		currFrame->pfn = frameAddr>>PAGESHIFT;
+		if (frameAddr < (int) currKernelBrk || (KERNEL_STACK_BASE <= frameAddr && frameAddr < KERNEL_STACK_LIMIT)) {
 			currFrame->isFree = 0;
 		} else {
 			currFrame->isFree = 1;
 		}
 		currFrame++;
 		frameAddr += PAGESIZE;
-		
 	}
     return 0;
 }
 
-int getFrame(frame_t *FrameList, int numFrames, frame_t **frame) {
+int getFrame(frame_t *FrameList, int numFrames, u_long *pfnp) {
     if (FrameList == NULL) {
         return ERROR;
     }
@@ -41,16 +40,15 @@ int getFrame(frame_t *FrameList, int numFrames, frame_t **frame) {
         i++;
     }
     currFrame->isFree = 0;
-    *frame = currFrame;
+    *pfnp = currFrame->pfn;
     return 0;
 }
 
 void freeFrame(frame_t *FrameList, int numFrames, u_long pfn) {
     int i;
     frame_t *currFrame = FrameList;
-    void *targetFrameAddr = (void *) (pfn<<PAGESHIFT);
     for (i = 0; i < numFrames; i++) {
-        if (targetFrameAddr == currFrame->addr) {
+        if (currFrame->pfn == pfn) {
             currFrame->isFree = 1;
             break;
         }

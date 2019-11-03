@@ -1,16 +1,22 @@
 #ifndef _FrameList_h
 #define _FrameList_h
 
+// if we could assume PMEM_BASE = 0, then the FrameList can be just a bool array...
 typedef struct frame {
-    void * addr;
-    int isFree; // 0 == not free; 1 == is free
+    u_long        pfn     :24;
+    unsigned int  isFree  :1; // 0 == not free; 1 == is free
 } frame_t;
+
 
 int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk);
 
-int getFrame(frame_t *FrameList, int numFrames, frame_t **frame);
 
+// returns ERROR/0; writes the pfn to pfnp.
+int getFrame(frame_t *FrameList, int numFrames, u_long *pfnp);
+
+// assumes that all input parameters are meaningful.
 void freeFrame(frame_t *FrameList, int numFrames, u_long pfn);
+
 
 void freeFrameList(frame_t *FrameList);
 

@@ -1,11 +1,13 @@
-#include "Scheduler.h"
 #include <yalnix.h>
 #include <hardware.h>  
 #include <stdio.h>
 #include <string.h>
+#include "../../GeneralDataStructures/Queue/Queue.h"
 #include "../PageTable/PageTable.h"
 #include "../FrameList/FrameList.h"
 #include "../../Kernel.h"
+#include "Scheduler.h"
+
 
 #define KERNEL_STACK_BASE_VPN  (KERNEL_STACK_BASE >> PAGESHIFT)
 #define KERNEL_BASE_VPN  (VMEM_0_BASE >> PAGESHIFT)
@@ -49,6 +51,7 @@ int initInitProcess(struct pte *initR1PageTable) {
     return 0;
 }
 
+
 int initProcess(PCB_t **pcb) {
     PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (newPCB == NULL) {
@@ -66,12 +69,12 @@ int initProcess(PCB_t **pcb) {
     newPCB->numRemainingDelayTicks = 0;
 
     int i;
-    frame_t *newFrame;
+    u_long pfn;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
-        if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+        if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
             return ERROR;
 	    }
-        (newPCB->stackPfns)[i] = (u_long) ((int) (newFrame->addr)>>PAGESHIFT);
+        (newPCB->stackPfns)[i] = pfn;
     }
 
     *pcb = newPCB;
@@ -92,7 +95,7 @@ KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
 	TracePrintf(1, "MyKCS called, currPCB->pid = %d\n", currPCB->pid);
 	
     // copy kctxt into currPcbP (after this, no more operation on currPcbP)
-	// TODO: is "currPcbP" always the same as "currPCB"?
+	// TOTHINK: is "currPcbP" always the same as "currPCB"?
     memmove((((PCB_t *) currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
 
     // set the global currPCB to be the PCB for the next process
@@ -124,4 +127,32 @@ KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
 	
     // return pointer to kctxt of nextPcbP
     return currPCB->kctxt;
+}
+
+
+void delete_process(void *pcbp_item) {
+	PCB_t *pcbp = (PCB_t *) pcbp_item;
+	free(pcbp->uctxt);
+	free(pcbp->kctxt);
+	
+	// free the frames in the r1PageTable, and then the r1PageTable
+	struct pte *ptep = pcbp->r1PageTable;
+	int i;
+	for (i = 0; i < MAX_PT_LEN; i++) {
+		if (ptep->valid == 1) {
+			freeFrame(FrameList, numFrames, ptep->pfn);
+			// does not need to invalidate entries here
+		}
+		ptep++;
+	}
+	free(pcbp->r1PageTable);
+	
+	// free the frames in the kernel stack
+	for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
+		freeFrame(FrameList, numFrames, (pcbp->stackPfns)[i]);
+	}
+	// TOTHINK: is flushing necessary here?
+	// Is called in another process, then no need to flush...
+	
+	free(pcbp);
 }

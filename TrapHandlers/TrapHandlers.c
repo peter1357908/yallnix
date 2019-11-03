@@ -96,15 +96,15 @@ void handleTrapMemory(UserContext *uctxt) {
 
     struct pte *currPageTable = currPCB->r1PageTable;
     struct pte *currPte = currPageTable + MAX_PT_LEN - 1;
-    frame_t *newFrame;
+    u_long pfn;
     void *currAddr = (void *) (VMEM_1_LIMIT - PAGESIZE);
     while (((int) currAddr>>PAGESHIFT) >= targetPageNumber) {
         if (currPte->valid == 0) {
-            if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
+            if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
                 // TODO: kill process;
                 return;
             }
-            setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+            setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), pfn);
         }
         currPte--;
         currAddr -= PAGESIZE;
