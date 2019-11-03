@@ -12,7 +12,45 @@
 #define KERNEL_STACK_BASE_VPN  (KERNEL_STACK_BASE >> PAGESHIFT)
 #define KERNEL_BASE_VPN  (VMEM_0_BASE >> PAGESHIFT)
 
-int nextPid = 0; 
+
+/* -------- the following items are only visible to Scheduler -------- */
+int nextPid;
+q_t *readyQ;
+q_t *blockedQ;
+q_t *zombieQ;
+
+
+/* ------ the following are for initialization ------ */
+
+int initProcess(PCB_t **pcb) {
+    PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
+    if (newPCB == NULL) {
+        return ERROR;
+    }
+
+    newPCB->pid = nextPid++;
+    newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
+	if (newPCB->uctxt == NULL) {
+        return ERROR;
+    }
+    newPCB->kctxt = NULL;
+    newPCB->numChildren = 0;
+    newPCB->r1PageTable = initializeRegionPageTable();
+    newPCB->numRemainingDelayTicks = 0;
+
+    int i;
+    u_long pfn;
+    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
+        if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
+            return ERROR;
+	    }
+        (newPCB->stackPfns)[i] = pfn;
+    }
+
+    *pcb = newPCB;
+    return 0;
+}
+
 
 int initInitProcess(struct pte *initR1PageTable) {
     initPCB = (PCB_t *) malloc(sizeof(PCB_t));
@@ -52,42 +90,26 @@ int initInitProcess(struct pte *initR1PageTable) {
 }
 
 
-int initProcess(PCB_t **pcb) {
-    PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
-    if (newPCB == NULL) {
-        return ERROR;
-    }
-
-    newPCB->pid = nextPid++;
-    newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
-	if (newPCB->uctxt == NULL) {
-        return ERROR;
-    }
-    newPCB->kctxt = NULL;
-    newPCB->numChildren = 0;
-    newPCB->r1PageTable = initializeRegionPageTable();
-    newPCB->numRemainingDelayTicks = 0;
-
-    int i;
-    u_long pfn;
-    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
-        if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-            return ERROR;
-	    }
-        (newPCB->stackPfns)[i] = pfn;
-    }
-
-    *pcb = newPCB;
-    return 0;
-}
-
-
-KernelContext *getStarterKctxt(KernelContext *currKctxt, void *nil0, void *nil1) {
-	TracePrintf(1, "getStarterKctxt called, currPCB->pid = %d\n", currPCB->pid);
+KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void *nil1) {
+	TracePrintf(1, "getStarterKernelState called, currPCB->pid = %d\n", currPCB->pid);
 	
 	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
     memmove(starterKctxt, currKctxt, sizeof(KernelContext));
     return starterKctxt;
+}
+
+
+/* ------ the following are for scheduling ------ */
+
+int initScheduler() {
+	nextPid = 0;
+	if ((readyQ = make_q()) == NULL || \
+		(blockedQ = make_q()) == NULL || \
+		(zombieQ = make_q()) == NULL) {
+		
+		return ERROR;
+	}
+	return 0;
 }
 
 
@@ -130,6 +152,12 @@ KernelContext *MyKCS(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
 }
 
 
+
+
+
+
+
+
 void delete_process(void *pcbp_item) {
 	PCB_t *pcbp = (PCB_t *) pcbp_item;
 	free(pcbp->uctxt);
@@ -156,3 +184,8 @@ void delete_process(void *pcbp_item) {
 	
 	free(pcbp);
 }
+
+
+
+
+

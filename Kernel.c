@@ -25,8 +25,6 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     interruptVectorArray[TRAP_TTY_RECEIVE] = handleTtyReceive;
     interruptVectorArray[TRAP_TTY_TRANSMIT] = handleTtyTransmit;
     interruptVectorArray[TRAP_DISK] = handleTrapDisk;
-	
-	TracePrintf(1, "\n%p\n", interruptVectorArray);
 
 	int i;
 	for (i = TRAP_DISK + 1; i < TRAP_VECTOR_SIZE; i++) {
@@ -35,15 +33,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
     // write REG_VECTOR_BASE
     WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
-
+	
 	// initialize the general r0PageTable (whose stack is for "init")
 	struct pte *r0PageTable = initializeRegionPageTable();
-		
+	
 	/* initialize an r1PageTable so we can enable VM; that page table will be
 	 * for the first ever process to run (i.e. "init")
 	 */
 	struct pte *initR1PageTable = initializeRegionPageTable();
-	struct pte *currentPte = r0PageTable;
 	
 	/* initialize FrameList; must happen after the pagetables are initialized,
 	 * and before the r0PageTable is filled.
@@ -56,6 +53,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	/* ------ no more malloc(), starting here, until VM is enabled!! ------ */
 	
 	// fill the r0PageTable according to the current kernel state
+	struct pte *currentPte = r0PageTable;
 	int addr;
 	for (addr = VMEM_BASE; addr < VMEM_0_LIMIT; addr += PAGESIZE) {
 		u_long prot;
@@ -99,6 +97,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	 * Consequently, we make a special initInitProcess() and a special LoadIdle() while using
 	 * the regular LoadProgram() for "init," and the regular initProcess() for "idle"
 	 */
+	 
+	if (initScheduler() == ERROR) Halt();
 	
 	if (initProcess(&idlePCB) == ERROR || LoadIdle() == ERROR) {
 		Halt();
@@ -133,7 +133,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	/* ------------ every new-process-to-run-next starts here ------------ */
 	/* ------------ current Kctxt and Kernel Stack are copied ------------ */
-	if (KernelContextSwitch(getStarterKctxt, starterKctxt, NULL) == ERROR) {
+	if (KernelContextSwitch(getStarterKernelState, NULL, NULL) == ERROR) {
 		Halt();
 	}
 	

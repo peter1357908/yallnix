@@ -1,23 +1,4 @@
-// Scheduler
-    // scheduler will manage processes and moving them 
-    // between states
-    // implementation TBD
-
-    // PCB_T * currentProcess
-    // PCB_T * idleProcess -- should always be in readyMap
-
-    // createProcess()
-        // calls generateProcessID()
-
-    // generateProcessID()
-        // increment processCount
-        // return processCount
-
-    // int processCount 
-    
-    // runningMap (HashMap: pid -> PCB_T *)
-    // readyMap (HashMap: pid -> PCB_T *) 
-    // blockedMap (HashMap: pid -> PCB_T *)
+// assumes that only one process can be running at a time
 
 #ifndef _Scheduler_h
 #define _Scheduler_h
@@ -42,15 +23,51 @@ PCB_t *idlePCB;
 PCB_t *initPCB;
 
 
-int initInitProcess(struct pte *initR1PageTable);
+/* --------- the following are for initialization --------- */
 
-
+// the initialized process will be enqueued in readyQ
 int initProcess(PCB_t **pcb);
 
 
-KernelContext *getStarterKctxt(KernelContext *currKctxt, void *nil0, void *nil1);
+// a special case of initProcess, only used for... the Init process.
+int initInitProcess(struct pte *initR1PageTable);
 
 
+/* saves the kernel state necessary to make a new process run: the KernelContext
+ * and the kernel stack.
+ */
+KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void *nil1);
+
+
+/* --------- the following are for scheduling --------- */
+
+// initializes the scheduler (initializes the queues and the nextPid)
+int initScheduler(void);
+
+
+// return ERROR/0; kicks the current process into readyQ and runs another ready process
+int kickProcess(void);
+
+
+/* returns ERROR/0; kicks the current process into readyQ and runs the target process
+ * if the process is ready. If the target process is not ready, do kickProcess().
+ */
+int runProcess(int pid);
+
+
+// returns ERROR/0; moves the current process into zombieQ and runs another ready process
+int zombifyProcess(void);
+
+
+// returns ERROR/0; blocks the current process and runs another ready process
+int blockProcess(void);
+
+
+// returns ERROR/0; moves a process from blockedQ to readyQ (does nothing else)
+int unblockProcess(int pid);
+
+
+// for use with KernelContextSwitch
 KernelContext *MyKCS(KernelContext *kc_in, void *currPcbP , void *nextPcbP);
 
 
