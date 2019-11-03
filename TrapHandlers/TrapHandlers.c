@@ -59,22 +59,12 @@ void handleTrapKernel(UserContext *uctxt) {
 void handleTrapClock(UserContext *uctxt) {
     // in the future, do this to all PCBs
     TracePrintf(1, "\nhandleTrapClock() called\n");
-    if (initPCB->numRemainingDelayTicks > 0) {
-        initPCB->numRemainingDelayTicks--;
-    }
-    
-    if (currPCB->pid == idlePCB->pid && initPCB->numRemainingDelayTicks <= 0 ) {
-        if (KernelContextSwitch(MyKCS, idlePCB, initPCB) == ERROR) { 
-            // print error message
-            Halt();
-        }
-    } 
-    else if (currPCB->pid == initPCB->pid) {
-        if (KernelContextSwitch(MyKCS, initPCB, idlePCB) == ERROR) { 
-            // print error message
-            Halt();
-        }
-    }
+ 
+    // for each PCB in blockedQueue:
+        // if PCB->numRemainingDelayTicks > 0:
+            // PCB->numRemainingDelayTicks--;
+
+    kickProcess();
 }
 
 void handleTrapIllegal(UserContext *uctxt) {

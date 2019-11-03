@@ -1,61 +1,108 @@
 #include <hardware.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../Kernel.h"
+#include <string.h>
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include "../KernelDataStructures/FrameList/FrameList.h"
 #include <yalnix.h>
+#include ".././LoadProgram.h"
 
 int KernelFork(void) {
-    // initialize new PCB for child (with new pid)
-    // copy Parent's PCB variables:
-        // region1Base, region1Limit, KernelStackBase, uctxt, kctxt
-    // increment Parent's PCB->numChildren
-    // set Child's PCB->parent to Parent's PCB->pid
+    PCB_t *parentPCB = currPCB;
+    PCB_t *childPCB;  
 
-    // initialize child's page table
-    // for each Parent's PTE in Region 1 & Kernel Stack
-        // copy PTE to child's page table
-        // newFrame = grab pfn from FreePMList
-        // set child PTE pfn to newFrame
-        // copy memory contents from parent page to child page
-    
-    // tell scheduler child is ready
-}
+    if (initProcess(&childPCB) == ERROR)
+        return ERROR;
 
-void KernelExit(int status) {
+    // copy PCB instance variables
+    memmmove(childPCB->kctxt, parentPCB->kctxt, sizeof(KernelContext));
+    memmmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
+    childPCB->brk = parentPCB->brk;
+
+    // copy parent's region 1 PTEs & allocate new physical frame if valid == 1
+    int i;
+    frame_t *newFrame;
+    u_long pfn; 
+    struct pte *currParentPte = parentPCB->r1PageTable;
+    struct pte *currChildPte = childPCB->r1PageTable;
+    for (i = 0; i < MAX_PT_LEN; i++) {
+        if (currParentPte->valid == 1) {
+            if (getFrame(FrameList, numFrames, &newFrame) == ERROR) 
+                return ERROR;
+            pfn = (u_long) (newFrame->addr)>>PAGESHIFT;
+            setPageTableEntry(currChildPte, currParentPte->valid, currParentPte->prot, pfn);
+        }
+
+        currChildPte++;
+        currParentPte++; 
+    }
     
+    // NOTE: 
+    // virtual memory for parent & child process will be the same,
+    // so we will use a "temp" page located below the Kernel Stack
+    // to write to the child process's memory
+    struct pte *tempPte = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN - 1; 
+    void *tempVAddr =  (void *) (KERNEL_STACK_BASE - PAGESIZE); 
+    int addr;
+
+    // copy R1 memory
+    currChildPte = childPCB->r1PageTable;
+    currParentPte = parentPCB->r1PageTable;
+    for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
+        if (currParentPte->valid == 1)
+            // set tempPte's pfn to currChildPte's pfn
+            setPageTableEntry(tempPte, 1, PROT_WRITE, currChildPte->pfn);
+            /*  copy from parent v-addr to temp v-addr
+                this should copy parent's memory contents to child's
+            */
+            memmove(tempVAddr, addr, PAGESIZE);
+        currChildPte++; 
+        currParentPte++;
+    }
+
+    // NOTE: the Kernel Stack is copied over during the context switch
+
+    childPCB->parent = parentPCB->pid;
+    parentPCB->numChildren++; 
+    
+    // TODO: how are we using Scheduler protoypes to do this?
+    if (KernelContextSwitch(MyKCS, parentPCB, childPCB) == ERROR) 
+        return ERROR;
+
+    if (currPCB->pid == parentPCB->pid) {
+        return childPCB->pid;
+    }
+    else if (currPCB->pid == childPCB->pid)  {
+        return 0;
+    }
+    else {
+        return ERROR;
+    }
 }
 
 int KernelExec(char *filename, char **argvec) {
-    // delete page table
-    // remove currentProcess's PCB from blockedMap (it should be there)
-    // delete old PCB
-    // initialize new PCB
-    // initialize new page table
-    // load program filename into page table
-    // load arguments into page table
-    // set UserContext & KernelContext (should be taken care of by PCB intialization)
-    // tell scheduler program is Ready
+    return LoadProgram(filename, argvec, currPCB);
+    runProcess(currPCB->pid);
 }
     
 void KernelExit(int status) {
-    // if currentProcess->Parent != NULL
-        // grab parentPCB
-        // grab currentProcess PID
-        // remove currentProcess from runningMap
-        // add (PID, status) to Parent's ZombieQueue
-    TracePrintf(1, "Exit\n");
+    if (currPCB->parent != NULL) {
+        PCB_t *parentPCB = currPCB->parent;
+        // (parentPCB->zombieQueue).push(pid, status)
+        // remove process from running Queue
+        // free the PCB & all of it's contents
+    }
 }
 
 int KernelWait(int *status_ptr) {
-    /*
-     *  if currentProcess -> numChildren equals 0:
-     *      throw Error
-     *  if zombie queue is empty:
-     *  move currentProcess from running to blocked
-     *  (process is now running * zombie queue has children)
-     *  (pid, status) = zombieQueue.pop()
-     *  &status_ptr = status
-     *  return pid
-     */
+    if (currPCB->numChildren == 0) 
+        return ERROR;
+    // while (currPCB->zombieQueue).isEmpty() {
+        // blockProcess();
+    // ** process is now running & zombieQueue has children **   
+    // PCB_t *childPCB = zombieQueue.pop()
+    // &status_ptr = child->status
+    // return childPCB->pid
 }
 
 int KernelGetPid(void) {
@@ -89,6 +136,8 @@ int KernelBrk(void *addr) {
                 return ERROR;
             }
             targetPtep = r1BasePtep + vpn - vpn1;
+
+            // TODO: fix this line
             setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
         }
     }
@@ -101,21 +150,13 @@ int KernelDelay(int clock_ticks){
         return ERROR;
     }
     currPCB->numRemainingDelayTicks = clock_ticks;
-    
-    if (currPCB->pid == idlePCB->pid) {
-        if (KernelContextSwitch(MyKCS, idlePCB, initPCB) == ERROR) { 
-            return ERROR;
-        }
-    } 
-    else if (currPCB->pid == initPCB->pid) {
-        if (KernelContextSwitch(MyKCS, initPCB, idlePCB) == ERROR) { 
-            return ERROR;
-        }
-    }
+    blockProcess();
+    // scheduler should grab another ready process & context switch into it
     return 0;
 }
 
 int KernelReclaim(int id) {
+    // 
     // for each map (LockMap, CVarMap, PipeMap):
         // if id in map:
             // free(id)

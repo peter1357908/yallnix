@@ -9,6 +9,7 @@
 #include "Scheduler.h"
 
 
+<<<<<<< Updated upstream
 #define KERNEL_STACK_BASE_VPN  (KERNEL_STACK_BASE >> PAGESHIFT)
 #define KERNEL_BASE_VPN  (VMEM_0_BASE >> PAGESHIFT)
 
@@ -51,6 +52,9 @@ int initProcess(PCB_t **pcb) {
     return 0;
 }
 
+=======
+int nextPid = 0; 
+>>>>>>> Stashed changes
 
 int initInitProcess(struct pte *initR1PageTable) {
     initPCB = (PCB_t *) malloc(sizeof(PCB_t));
@@ -75,6 +79,7 @@ int initInitProcess(struct pte *initR1PageTable) {
     initPCB->numChildren = 0;
     initPCB->r1PageTable = initR1PageTable;
     initPCB->numRemainingDelayTicks = 0;
+    initPCB->parent = NULL;
 	
 	// calculate r0StackBasePtep;
     struct pte *r0StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
@@ -90,8 +95,44 @@ int initInitProcess(struct pte *initR1PageTable) {
 }
 
 
+<<<<<<< Updated upstream
 KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void *nil1) {
 	TracePrintf(1, "getStarterKernelState called, currPCB->pid = %d\n", currPCB->pid);
+=======
+int initProcess(PCB_t **pcb) {
+    PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
+    if (newPCB == NULL) {
+        return ERROR;
+    }
+
+    newPCB->pid = nextPid++;
+    newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
+	if (newPCB->uctxt == NULL) {
+        return ERROR;
+    }
+    newPCB->kctxt = NULL;
+    newPCB->numChildren = 0;
+    newPCB->r1PageTable = initializeRegionPageTable();
+    newPCB->numRemainingDelayTicks = 0;
+    newPCB->parent = NULL;
+
+    int i;
+    u_long pfn;
+    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
+        if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
+            return ERROR;
+	    }
+        (newPCB->stackPfns)[i] = pfn;
+    }
+
+    *pcb = newPCB;
+    return 0;
+}
+
+
+KernelContext *getStarterKctxt(KernelContext *currKctxt, void *nil0, void *nil1) {
+	TracePrintf(1, "getStarterKctxt called, currPCB->pid = %d\n", currPCB->pid);
+>>>>>>> Stashed changes
 	
 	memmove(starterKernelStack, (void *) KERNEL_STACK_BASE, KERNEL_STACK_MAXSIZE);
     memmove(starterKctxt, currKctxt, sizeof(KernelContext));

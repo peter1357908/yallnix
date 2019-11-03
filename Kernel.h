@@ -41,6 +41,9 @@ int itemCount; // use this for lock, cvar, and pipe ids
 #define KILL 42
 #define SUCCESS 0
 
+#define KERNEL_STACK_BASE_VPN  (KERNEL_STACK_BASE >> PAGESHIFT)
+#define KERNEL_BASE_VPN  (VMEM_0_BASE >> PAGESHIFT)
+
 frame_t *FrameList;
 int numFrames;
 
