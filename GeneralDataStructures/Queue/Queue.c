@@ -12,15 +12,7 @@
 #include "Queue.h"
 
 
-typedef struct qnode {
-	void *item;
-	struct qnode *node_behind;
-} qnode_t;
-
-typedef struct queue {
-	qnode_t *head;
-	qnode_t *tail;
-} q_t;
+/* -------- basic queue functions -------- */
 
 q_t *make_q() {
 	q_t *queue = (q_t *)malloc(sizeof(q_t));
@@ -43,10 +35,10 @@ void free_q(q_t *queue, void (*itemdelete)(void *item)) {
 }
 
 int enq_q(q_t *queue, void *item) {
+	if (queue == NULL) return ERROR;
+	
 	qnode_t *node = (qnode_t *)malloc(sizeof(qnode_t));
-	if (node == NULL) {
-		return ERROR;
-	}
+	if (node == NULL) return ERROR;
 	
 	node->item = item;
 	node->node_behind = NULL;
@@ -63,17 +55,33 @@ int enq_q(q_t *queue, void *item) {
 }
 
 void *deq_q(q_t *queue) {
-	void *item = queue->head->item;
-	qnode_t *new_head = queue->head->node_behind;
-	free(queue->head);
-	queue->head = new_head;
-	if (queue->head == NULL) {
-		queue->tail = NULL;
+	void *item = NULL;
+	if (queue != NULL && queue->head != NULL) {
+		item = queue->head->item;
+		qnode_t *new_head = queue->head->node_behind;
+		free(queue->head);
+		queue->head = new_head;
+		if (queue->head == NULL) {
+			queue->tail = NULL;
+		}
 	}
 	return item;
 }
 
+
+/* -------- unconventional queue functions -------- */
+
+void iterate_q(q_t *queue, void (*itemfunc)(void *item)) {
+	if (queue != NULL) {
+		qnode_t *currNode = queue->head;
+		while(currNode != NULL) {
+			(*itemfunc)(currNode->item);
+			currNode = currNode->node_behind;
+		}
+	}
+}
+
+
 void *peek_q(q_t *queue) {
 	return queue->head->item;
 }
-

@@ -1,9 +1,12 @@
-// assumes that only one process can be running at a time
+/* assumes that only one process can be running at a time
+ * assumes that the idle process is either running or in the readyQ
+ */
 
 #ifndef _Scheduler_h
 #define _Scheduler_h
 
 #include <hardware.h>
+#include "../../GeneralDataStructures/Queue/Queue.h"
 
 typedef struct PCB {
     int pid;
@@ -11,10 +14,11 @@ typedef struct PCB {
     UserContext *uctxt;
     KernelContext *kctxt;
     unsigned int numChildren;
-    struct PCB *parent; // -- currently only using this for KernelExit/KernelWait
+    struct PCB *parent; // only using this for KernelExit/KernelWait
+	q_t *zombieQ;  // only used for KernelExit/KernelWait
 	struct pte *r1PageTable;
-    u_long stackPfns[KERNEL_STACK_MAXSIZE / PAGESIZE];
     unsigned int numRemainingDelayTicks;
+	u_long stackPfns[KERNEL_STACK_MAXSIZE / PAGESIZE];
 } PCB_t;
 
 
@@ -41,22 +45,39 @@ KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void 
 
 /* --------- the following are for scheduling --------- */
 
-// initializes the scheduler (initializes the queues and the nextPid)
+// return ERROR/0; initializes the scheduler (initializes the queues and the nextPid)
 int initScheduler(void);
 
 
-// return ERROR/0; kicks the current process into readyQ and runs another ready process
+/* return ERROR/0; enqueue some process in sleepingQ and setting their 
+ * numRemainingDelayTicks.
+ */
+int sleepProcess(unsigned int numRemainingDelayTicks);
+
+
+// return ERROR/0; ticks down all sleepers and move to readyQ when necessary
+int tickDownSleepers(void);
+
+
+/* return ERROR/0; kicks the current process into readyQ and runs another ready process.
+ * Theoretically, if the queue was empty, the same process is run again (which is impossible
+ * for Yalnix, since the readyQ always has init or idle, and when init exits, Yalnix halts).
+ */
 int kickProcess(void);
 
 
 /* returns ERROR/0; kicks the current process into readyQ and runs the target process
- * if the process is ready. If the target process is not ready, do kickProcess().
+ * if the process is ready. If the target process is not ready, just run another process
+ * like kickProcess().
  */
 int runProcess(int pid);
 
 
-// returns ERROR/0; moves the current process into zombieQ and runs another ready process
-int zombifyProcess(void);
+/* returns ERROR/0; moves the current process into its parent's zombieQ and runs another 
+ * ready process. If the current process has no parent, just delete the process and run
+ * another process like kickProcess().
+ */
+int zombifyProcess(int exit_status);
 
 
 // returns ERROR/0; blocks the current process and runs another ready process
@@ -67,14 +88,15 @@ int blockProcess(void);
 int unblockProcess(int pid);
 
 
-// for use with KernelContextSwitch
-KernelContext *MyKCS(KernelContext *kc_in, void *currPcbP , void *nextPcbP);
+/* when calling with currPcbP == NULL, assume that the currPCB is deleted already.
+ */
+KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP);
 
 
 /* delete_process() frees a PCB and all content within, including its uctxt,
  * kctxt, and r1PageTable. Also frees the allocated physical memory. Depends
- * on the FrameList module. Assumes the caller is outside the original process
- * and thus does not flush the TLB.
+ * on the FrameList module. Assumes that the call is followed by a "currPcbP=NULL"
+ * KernelContextSwitch, and thus does not flush the TLB.
  *
  * Used along with the Queue module, and thus the signature.
  */

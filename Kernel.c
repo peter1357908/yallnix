@@ -96,6 +96,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	 * we need to manually "load" DoIdle() instead of relying on LoadProgram().
 	 * Consequently, we make a special initInitProcess() and a special LoadIdle() while using
 	 * the regular LoadProgram() for "init," and the regular initProcess() for "idle"
+	 *
+	 * Further, "init" won't be enqueued in the readyQ; it will be currPCB. "init"
+	 * will also have its kctxt malloc'd already, as it's not considered a new process.
 	 */
 	 
 	if (initScheduler() == ERROR) Halt();
@@ -110,7 +113,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		cmd_args = default_args;
 	}
 	
-	if (initInitProcess(initR1PageTable) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) == ERROR) {
+	// be mindful that LoadProgram may return KILL; but as long as it's not SUCCESS...
+	if (initInitProcess(initR1PageTable) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) != SUCCESS) {
 		Halt();
 	}
 
@@ -172,9 +176,7 @@ int SetKernelBrk(void *addr) {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
 				int vpn = (currAddr>>PAGESHIFT);
 				u_long pfn;
-				if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-					return ERROR;
-				}
+				if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
 				targetPtep = r0PageTable + vpn - vpn0;
 				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
 			}

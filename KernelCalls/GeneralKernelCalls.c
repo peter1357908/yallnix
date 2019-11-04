@@ -1,11 +1,10 @@
 #include <hardware.h>
-#include "../KernelDataStructures/Scheduler/Scheduler.h"
-#include "../Kernel.h"
+#include <yalnix.h>
 #include <string.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../KernelDataStructures/FrameList/FrameList.h"
-#include <yalnix.h>
 #include ".././LoadProgram.h"
+#include "../Kernel.h"
 
 int KernelFork(void) {
     PCB_t *parentPCB = currPCB;
@@ -21,15 +20,12 @@ int KernelFork(void) {
 
     // copy parent's region 1 PTEs & allocate new physical frame if valid == 1
     int i;
-    frame_t *newFrame;
     u_long pfn; 
     struct pte *currParentPte = parentPCB->r1PageTable;
     struct pte *currChildPte = childPCB->r1PageTable;
     for (i = 0; i < MAX_PT_LEN; i++) {
         if (currParentPte->valid == 1) {
-            if (getFrame(FrameList, numFrames, &newFrame) == ERROR) 
-                return ERROR;
-            pfn = (u_long) (newFrame->addr)>>PAGESHIFT;
+            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
             setPageTableEntry(currChildPte, currParentPte->valid, currParentPte->prot, pfn);
         }
 
@@ -65,9 +61,7 @@ int KernelFork(void) {
     childPCB->parent = parentPCB->pid;
     parentPCB->numChildren++; 
     
-    // TODO: how are we using Scheduler protoypes to do this?
-    if (KernelContextSwitch(MyKCS, parentPCB, childPCB) == ERROR) 
-        return ERROR;
+    runProcess(childPCB->pid);
 
     if (currPCB->pid == parentPCB->pid) {
         return childPCB->pid;
@@ -86,6 +80,11 @@ int KernelExec(char *filename, char **argvec) {
 }
     
 void KernelExit(int status) {
+	// TOTHINK: can we just check the PCB pointers?
+	if (currPCB->pid == initPCB->pid) {
+		TracePrintf(1, "Init process exited; Calling Halt()...");
+		Halt();
+	}
     if (currPCB->parent != NULL) {
         PCB_t *parentPCB = currPCB->parent;
         // (parentPCB->zombieQueue).push(pid, status)
@@ -131,16 +130,15 @@ int KernelBrk(void *addr) {
     else {
         for (currAddr = (int) brk; currAddr < (int) addr; currAddr += PAGESIZE) {
             int vpn = (currAddr>>PAGESHIFT);
-            frame_t *newFrame;
-            if (getFrame(FrameList, numFrames, &newFrame) == ERROR) {
-                return ERROR;
-            }
+            u_long pfn;
+            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
             targetPtep = r1BasePtep + vpn - vpn1;
 
             // TODO: fix this line
-            setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), (int) (newFrame->addr)>>PAGESHIFT);
+            setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
         }
     }
+	
     currPCB->brk = addr;
     return 0;
 }

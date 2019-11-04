@@ -57,14 +57,12 @@ void handleTrapKernel(UserContext *uctxt) {
 }
 
 void handleTrapClock(UserContext *uctxt) {
-    // in the future, do this to all PCBs
     TracePrintf(1, "\nhandleTrapClock() called\n");
  
-    // for each PCB in blockedQueue:
-        // if PCB->numRemainingDelayTicks > 0:
-            // PCB->numRemainingDelayTicks--;
-
-    kickProcess();
+    if (tickDownSleepers() == ERROR || \
+		kickProcess() == ERROR) {
+		Halt();
+	}
 }
 
 void handleTrapIllegal(UserContext *uctxt) {

@@ -194,9 +194,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 
   currentPtep = pageTableR1Base + text_pg1;
   for (i = 0; i < li.t_npg; i++) { 
-      if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-        return KILL;
-      }
+      if (getFrame(FrameList, numFrames, &pfn) == ERROR) return KILL;
       setPageTableEntry(currentPtep, 1, (PROT_READ|PROT_WRITE), pfn);
       currentPtep++;
   }
@@ -208,9 +206,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 
   currentPtep = pageTableR1Base + data_pg1;
   for (i = 0; i < data_npg; i++) {
-      if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-        return KILL;
-      }
+      if (getFrame(FrameList, numFrames, &pfn) == ERROR) return KILL;
       setPageTableEntry(currentPtep, 1, (PROT_READ|PROT_WRITE), pfn);
       currentPtep++;
   }
@@ -227,9 +223,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 	struct pte *currentStackPte = pageTableR1Base + MAX_PT_LEN - stack_npg;
 
   for (i = 0; i < stack_npg; i++) {
-    if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-      return KILL;
-    }
+    if (getFrame(FrameList, numFrames, &pfn) == ERROR) return KILL;
     setPageTableEntry(currentStackPte, 1, (PROT_READ|PROT_WRITE), pfn);
     currentStackPte++;
   }
@@ -338,9 +332,7 @@ int LoadIdle()
 	
 	struct pte *r1StackBasePtep = idlePCB->r1PageTable + MAX_PT_LEN - 1;
 	u_long r1StackBasePfn;
-	if (getFrame(FrameList, numFrames, &r1StackBasePfn) == ERROR) {
-		return ERROR;
-	}
+	if (getFrame(FrameList, numFrames, &r1StackBasePfn) == ERROR) return ERROR;
 	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, r1StackBasePfn);
 
 	int size = 0;
