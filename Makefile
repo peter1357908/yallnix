@@ -112,9 +112,9 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 # %.o: %.c: rules for setting up dependencies.  Don't use this directly
 # %: %.o: rules for setting up dependencies.  Don't use this directly
 
-all: $(ALL)	
+all: $(ALL)
 
-clean: 
+clean:
 	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
 

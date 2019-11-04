@@ -65,8 +65,8 @@ int tickDownSleepers(void);
 
 
 /* return ERROR/0; kicks the current process into readyQ and runs another ready process.
- * Theoretically, if the queue was empty, the same process is run again (which is impossible
- * for Yalnix, since the readyQ always has init or idle, and when init exits, Yalnix halts).
+ * Theoretically, if the queue was empty, the same process is run again (for example, when
+ * init is the only other process and sleeps, then idle gets the CPU repeatedly).
  */
 int kickProcess(void);
 

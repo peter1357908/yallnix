@@ -127,7 +127,13 @@ int sleepProcess(int numRemainingDelayTicks) {
 	
 	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
 	
-	return kickProcess();
+	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
+	
+	if (nextPCB == NULL) return ERROR;
+	
+	if (KernelContextSwitch(switchBetween, currPCB, nextPCB) == ERROR) return ERROR;
+	
+	return 0;
 }
 
 

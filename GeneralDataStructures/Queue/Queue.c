@@ -37,7 +37,7 @@ void free_q(q_t *queue, void (*itemdelete)(void *item)) {
 int enq_q(q_t *queue, void *item) {
 	if (queue == NULL) return ERROR;
 	
-	qnode_t *node = (qnode_t *)malloc(sizeof(qnode_t));
+	qnode_t *node = (qnode_t *) malloc(sizeof(qnode_t));
 	if (node == NULL) return ERROR;
 	
 	node->item = item;
