@@ -94,16 +94,16 @@ void KernelExit(int status) {
 }
 
 int KernelWait(int *status_ptr) {
-    if (currPCB->numChildren == 0) 
-        return ERROR;
+    if (currPCB->numChildren == 0) return ERROR;
     if (peek_q(currPCB->zombieQ) == NULL) {
         blockProcess();
+	}
 		
     // ** process is now running & zombieQueue has children ** 
     zombie_t *childPcbp = deq_q(currPCB->zombieQ);
 	if (childPcbp == NULL) return ERROR;
 	
-    status_ptr = childPcbp->exit_status;
+    *status_ptr = childPcbp->exit_status;
     return childPcbp->pid;
 }
 
