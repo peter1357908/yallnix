@@ -18,7 +18,7 @@ void main() {
 	if (0 == pid) {
 		// NOTE: execTest doesn't use args, we'll want to test this later
 		TracePrintf(1, "\nchild is calling Exec()...\n");
-		Exec('execTest', 0X0); 
+		Exec("execTest", (void *) 0X0); 
 		TracePrintf(1, "\nchild is exiting w/ status code == 1...\n");
 		Exit(1);
 	}
