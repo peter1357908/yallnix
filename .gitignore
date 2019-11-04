@@ -19,6 +19,7 @@ TRACE
 **/*.o
 yalnix
 init
+execTest
 
 
 # For convenience

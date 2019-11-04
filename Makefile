@@ -21,33 +21,41 @@
 ALL = $(KERNEL_ALL) $(USER_APPS)
 KERNEL_ALL = yalnix
 
-KERNEL_DATA_STRUCTURES = KernelDataStructures
-PAGE_TABLE = $(KERNEL_DATA_STRUCTURES)/PageTable/PageTable
-FRAME_LIST = $(KERNEL_DATA_STRUCTURES)/FrameList/FrameList
-SCHEDULER = $(KERNEL_DATA_STRUCTURES)/Scheduler/Scheduler
+KERNEL_DATA_STRUCTURES_DIR = KernelDataStructures
+PAGE_TABLE = $(KERNEL_DATA_STRUCTURES_DIR)/PageTable/PageTable
+FRAME_LIST = $(KERNEL_DATA_STRUCTURES_DIR)/FrameList/FrameList
+SCHEDULER = $(KERNEL_DATA_STRUCTURES_DIR)/Scheduler/Scheduler
 
-GENERAL_DATA_STRUCTURES = GeneralDataStructures
-QUEUE = $(GENERAL_DATA_STRUCTURES)/Queue/Queue
-HASH_MAP = $(GENERAL_DATA_STRUCTURES)/HashMap/HashMap
-SET_DS = $(GENERAL_DATA_STRUCTURES)/HashMap/set
+GENERAL_DATA_STRUCTURES_DIR = GeneralDataStructures
+QUEUE = $(GENERAL_DATA_STRUCTURES_DIR)/Queue/Queue
+# HashMap and Set are not used yet
+HASH_MAP = $(GENERAL_DATA_STRUCTURES_DIR)/HashMap/HashMap
+SET_DS = $(GENERAL_DATA_STRUCTURES_DIR)/HashMap/set
+
+KERNEL_CALLS_DIR = KernelCalls
+# remeber there is only one header file, $(KERNEL_CALLS_HEADER) for this module
+KERNEL_CALLS_HEADER = $(KERNEL_CALLS_DIR)/KernelCalls.h
+GENERAL_KERNEL_CALLS = $(KERNEL_CALLS_DIR)/GeneralKernelCalls
+
 
 TRAP_HANDLERS = TrapHandlers/TrapHandlers
 LOAD_PROGRAM = LoadProgram
 
+
 #List all kernel source files here.  
-KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c
+KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c $(GENERAL_KERNEL_CALLS).c
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(QUEUE).o $(HASH_MAP).o $(SET_DS).o $(TRAP_HANDLERS).o $(LOAD_PROGRAM).o
+KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(QUEUE).o $(HASH_MAP).o $(SET_DS).o $(TRAP_HANDLERS).o $(LOAD_PROGRAM).o $(GENERAL_KERNEL_CALLS).o
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h
+KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h $(KERNEL_CALLS_HEADER)
 
 
 #List all user programs here.
-USER_APPS = init
+USER_APPS = init execTest
 #List all user program source files here.  SHould be the same as the previous list, with ".c" added to each file
-USER_SRCS = init.c
+USER_SRCS = init.c execTest.c
 #List the objects to be formed form the user  source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-USER_OBJS = init.o
+USER_OBJS = init.o execTest.o
 #List all of the header files necessary for your user programs
 USER_INCS = 
 
@@ -106,7 +114,7 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 
 all: $(ALL)	
 
-clean: kill
+clean:
 	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
 

@@ -14,8 +14,8 @@ int KernelFork(void) {
         return ERROR;
 
     // copy PCB instance variables
-    memmmove(childPCB->kctxt, parentPCB->kctxt, sizeof(KernelContext));
-    memmmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
+    memmove(childPCB->kctxt, parentPCB->kctxt, sizeof(KernelContext));
+    memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
     childPCB->brk = parentPCB->brk;
 
     // copy parent's region 1 PTEs & allocate new physical frame if valid == 1
@@ -51,14 +51,14 @@ int KernelFork(void) {
             /*  copy from parent v-addr to temp v-addr
                 this should copy parent's memory contents to child's
             */
-            memmove(tempVAddr, addr, PAGESIZE);
+            memmove(tempVAddr, (void *) addr, PAGESIZE);
         currChildPte++; 
         currParentPte++;
     }
 
     // NOTE: the Kernel Stack is copied over during the context switch
 
-    childPCB->parent = parentPCB->pid;
+    childPCB->parent = parentPCB;
     parentPCB->numChildren++; 
     
     if (runProcess(childPCB->pid) == ERROR) return ERROR;
@@ -90,7 +90,7 @@ void KernelExit(int status) {
 		Halt();
 	}
 	
-	if (zombifyProcess(status) == NULL) Halt();
+	if (zombifyProcess(status) == ERROR) Halt();
 }
 
 int KernelWait(int *status_ptr) {
