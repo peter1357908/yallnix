@@ -8,49 +8,49 @@
 
 void handleTrapKernel(UserContext *uctxt) {
     // use the code stored in uctxt to call the corresponding syscall functions.
-    // switch(uctxt->code) {
-        // case YALNIX_FORK:
-            // KernelFork();
-        // case YALNIX_EXEC:
-            // KernelExec();
-        // case YALNIX_EXIT:
-            // KernelExit();
-        // case YALNIX_WAIT:
-            // KernelWait();
-        // case YALNIX_GETPID:
-            // KernelGetPid();
-        // case YALNIX_BRK:
-            // KernelBrk();
-        // case YALNIX_DELAY:
-            // KernelDelay();
+    switch(uctxt->code) {
+        case YALNIX_FORK:
+            KernelFork();
+        case YALNIX_EXEC:
+            KernelExec((uctxt->regs)[0], (uctxt->regs)[1]);
+        case YALNIX_EXIT:
+            KernelExit((uctxt->regs)[0]);
+        case YALNIX_WAIT:
+            KernelWait((uctxt->regs)[0]);
+        case YALNIX_GETPID:
+            KernelGetPid();
+        case YALNIX_BRK:
+            KernelBrk((uctxt->regs)[0]);
+        case YALNIX_DELAY:
+            KernelDelay((uctxt->regs)[0]);
         // case YALNIX_TTY_READ:
-            // KernelTtyRead();
+        //     KernelTtyRead();
         // case YALNIX_TTY_WRITE:
-            // KernelTtyWrite();
+        //     KernelTtyWrite();
 
         // #ifdef LINUX
         // case YALNIX_LOCK_INIT:
-            // KernelLockInit();
+        //     KernelLockInit();
         // case YALNIX_LOCK_ACQUIRE:   
-            // KernelLockAcquire();
+        //     KernelLockAcquire();
         // case YALNIX_LOCK_RELEASE:
-            // KernelLockRelease();
+        //     KernelLockRelease();
         // case YALNIX_CVAR_INIT:
-            // KernelCvarInit();
+        //     KernelCvarInit();
         // case YALNIX_CVAR_SIGNAL:
-            // KernelCvarSignal();
+        //     KernelCvarSignal();
         // case YALNIX_CVAR_BROADCAST:
-            // KernelCvarBroadcast();
+        //     KernelCvarBroadcast();
         // case YALNIX_CVAR_WAIT:
-            // kernelCvarWait();
+        //     kernelCvarWait();
         // case YALNIX_PIPE_INIT:
-            // KernelPipeInit();
+        //     KernelPipeInit();
         // case YALNIX_PIPE_READ:
-            // KernelPipeRead();
+        //     KernelPipeRead();
         // case YALNIX_PIPE_WRITE: 
-            // KernelPipeWrite();
+        //     KernelPipeWrite();
         // #endif
-    // }
+    }
 }
 
 void handleTrapClock(UserContext *uctxt) {
@@ -67,7 +67,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
-	TracePrintf(1, "\nhey i'm the memory trap handler\n");
+	TracePrintf(1, "\nstarting  handleTrapMemory()\n");
     void *addr = uctxt->addr;
     void *sp = uctxt->sp; 
 	int targetPageNumber = (int) addr>>PAGESHIFT;
