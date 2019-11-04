@@ -7,7 +7,7 @@
 int LoadProgram(char *name, char *args[], PCB_t *proc);
 
 // assumes that initProcess(&idlePCB) is called beforehand;
-int LoadIdle(void);
+int LoadIdle(PCB_t *idlePCB);
 
 
 #endif /* _LoadProgram_h */

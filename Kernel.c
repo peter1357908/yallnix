@@ -103,7 +103,10 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	 
 	if (initScheduler() == ERROR) Halt();
 	
-	if (initProcess(&idlePCB) == ERROR || LoadIdle() == ERROR) {
+	PCB_t *idlePCB;
+	PCB_t *initPCB;
+	
+	if (initProcess(&idlePCB) == ERROR || LoadIdle(idlePCB) == ERROR) {
 		Halt();
 	}
 	
@@ -114,7 +117,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	}
 	
 	// be mindful that LoadProgram may return KILL; but as long as it's not SUCCESS...
-	if (initInitProcess(initR1PageTable) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) != SUCCESS) {
+	if (initInitProcess(initR1PageTable, &initPCB) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) != SUCCESS) {
 		Halt();
 	}
 

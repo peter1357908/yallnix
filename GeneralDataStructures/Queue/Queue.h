@@ -38,6 +38,7 @@ void *deq_q(q_t *queue);
 void iterate_q(q_t *queue, void (*itemfunc)(void *item));
 
 
+// returns NULL if the queue is NULL or it's empty.
 void *peek_q(q_t *queue);
 
 

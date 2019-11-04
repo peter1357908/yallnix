@@ -16,7 +16,7 @@
  *  is to be loaded. 
  */
 
-int LoadProgram(char *name, char *args[], PCB_t *proc) 
+int LoadProgram(char *name, char *args[], PCB_t *proc)
 // ==>> Declare the argument "proc" to be a pointer to your PCB or
 // ==>> process descriptor data structure.  We assume you have a member
 // ==>> of this structure used to hold the cpu context 
@@ -324,8 +324,7 @@ void DoIdle() {
 }
 
 
-int LoadIdle()
-{
+int LoadIdle(PCB_t *idlePCB) {
 	/* mimics LoadProgram(); nothing will be actually written into the r1Stack,
 	 * so there is no need to swtich MMU registers.
 	 */

@@ -83,5 +83,6 @@ void iterate_q(q_t *queue, void (*itemfunc)(void *item)) {
 
 
 void *peek_q(q_t *queue) {
+	if (queue == NULL || queue->head == NULL) return NULL;
 	return queue->head->item;
 }

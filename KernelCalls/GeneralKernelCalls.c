@@ -61,7 +61,7 @@ int KernelFork(void) {
     childPCB->parent = parentPCB->pid;
     parentPCB->numChildren++; 
     
-    runProcess(childPCB->pid);
+    if (runProcess(childPCB->pid) == ERROR) return ERROR;
 
     if (currPCB->pid == parentPCB->pid) {
         return childPCB->pid;
@@ -75,33 +75,37 @@ int KernelFork(void) {
 }
 
 int KernelExec(char *filename, char **argvec) {
-    return LoadProgram(filename, argvec, currPCB);
-    runProcess(currPCB->pid);
+    if (LoadProgram(filename, argvec, currPCB) == ERROR || \
+		execProcess() == ERROR) {
+		return ERROR;
+	}
+	
+	return 0;
 }
     
 void KernelExit(int status) {
 	// TOTHINK: can we just check the PCB pointers?
-	if (currPCB->pid == initPCB->pid) {
+	// TODO: wrap Halt() with free functions
+	if (currPCB->pid == initPid) {
 		TracePrintf(1, "Init process exited; Calling Halt()...");
 		Halt();
 	}
-    if (currPCB->parent != NULL) {
-        PCB_t *parentPCB = currPCB->parent;
-        // (parentPCB->zombieQueue).push(pid, status)
-        // remove process from running Queue
-        // free the PCB & all of it's contents
-    }
+	
+	if (zombifyProcess(status) == NULL) Halt();
 }
 
 int KernelWait(int *status_ptr) {
     if (currPCB->numChildren == 0) 
         return ERROR;
-    // while (currPCB->zombieQueue).isEmpty() {
-        // blockProcess();
-    // ** process is now running & zombieQueue has children **   
-    // PCB_t *childPCB = zombieQueue.pop()
-    // &status_ptr = child->status
-    // return childPCB->pid
+    if (peek_q(currPCB->zombieQueue) == NULL) {
+        blockProcess();
+		
+    // ** process is now running & zombieQueue has children ** 
+    zombie_t *childPcbp = deq_q(currPCB->zombieQueue);
+	if (childPCB == NULL) return ERROR;
+	
+    &status_ptr = childPcbp->exit_status;
+    return childPcbp->pid;
 }
 
 int KernelGetPid(void) {
@@ -143,12 +147,11 @@ int KernelBrk(void *addr) {
     return 0;
 }
 
-int KernelDelay(int clock_ticks){
-    if (clock_ticks < 0) {
+int KernelDelay(int clock_ticks) {
+    if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
         return ERROR;
     }
-    currPCB->numRemainingDelayTicks = clock_ticks;
-    blockProcess();
+	
     // scheduler should grab another ready process & context switch into it
     return 0;
 }

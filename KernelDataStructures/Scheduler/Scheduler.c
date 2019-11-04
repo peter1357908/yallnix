@@ -59,13 +59,15 @@ int initProcess(PCB_t **pcb) {
 }
 
 
-int initInitProcess(struct pte *initR1PageTable) {
-    initPCB = (PCB_t *) malloc(sizeof(PCB_t));
+int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
+    PCB_t *initPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (initPCB == NULL) {
         return ERROR;
     }
 
     initPCB->pid = nextPid++;
+	initPid = initPCB->pid;
+	
     initPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (initPCB->uctxt == NULL) {
         return ERROR;
@@ -96,7 +98,8 @@ int initInitProcess(struct pte *initR1PageTable) {
 	}
 	
 	// no need to enqueue, as "init" will become the currPCB in Kernel Start
-    
+	*initPcbpp = initPCB;
+	
     return 0;
 }
 
@@ -120,6 +123,15 @@ int initScheduler() {
 		return ERROR;
 	}
 	return 0;
+}
+
+
+int sleepProcess(int numRemainingDelayTicks) {
+	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
+	
+	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
+	
+	return kickProcess();
 }
 
 
@@ -158,6 +170,11 @@ int runProcess(int pid) {
 }
 
 
+int execProcess() {
+	return KernelContextSwitch(switchBetween, NULL, currPCB);
+}
+
+
 int zombifyProcess(int exit_status) {
 	PCB_t *parentPcbp = currPCB->parent;
 	
@@ -171,7 +188,10 @@ int zombifyProcess(int exit_status) {
 		zombie_t *zombiePcbp = (zombie_t *) malloc(sizeof(zombie_t));
 		zombiePcbp->pid = currPCB->pid;
 		zombiePcbp->exit_status = exit_status;
+		
 		if (enq_q(parentPcbp->zombieQ, zombiePcbp) == ERROR) return ERROR;
+		
+		unblockProcess(parentPcbp->pid);
 	}
 	
 	delete_process(currPCB);

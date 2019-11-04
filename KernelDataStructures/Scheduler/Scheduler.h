@@ -17,14 +17,14 @@ typedef struct PCB {
     struct PCB *parent; // only using this for KernelExit/KernelWait
 	q_t *zombieQ;  // only used for KernelExit/KernelWait
 	struct pte *r1PageTable;
-    unsigned int numRemainingDelayTicks;
+    int numRemainingDelayTicks;
 	u_long stackPfns[KERNEL_STACK_MAXSIZE / PAGESIZE];
 } PCB_t;
 
 
 PCB_t *currPCB;
-PCB_t *idlePCB;
-PCB_t *initPCB;
+
+int initPid;
 
 
 /* --------- the following are for initialization --------- */
@@ -34,7 +34,7 @@ int initProcess(PCB_t **pcb);
 
 
 // a special case of initProcess, only used for... the Init process.
-int initInitProcess(struct pte *initR1PageTable);
+int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp);
 
 
 /* saves the kernel state necessary to make a new process run: the KernelContext
@@ -50,9 +50,9 @@ int initScheduler(void);
 
 
 /* return ERROR/0; enqueue some process in sleepingQ and setting their 
- * numRemainingDelayTicks.
+ * numRemainingDelayTicks. Do kickProcess().
  */
-int sleepProcess(unsigned int numRemainingDelayTicks);
+int sleepProcess(int numRemainingDelayTicks);
 
 
 // return ERROR/0; ticks down all sleepers and move to readyQ when necessary
@@ -71,6 +71,10 @@ int kickProcess(void);
  * like kickProcess().
  */
 int runProcess(int pid);
+
+
+// return ERROR/0; called after exec.
+int execProcess(void);
 
 
 /* returns ERROR/0; moves the current process into its parent's zombieQ and runs another 
