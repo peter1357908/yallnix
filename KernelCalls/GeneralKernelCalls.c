@@ -75,8 +75,7 @@ int KernelFork(void) {
 }
 
 int KernelExec(char *filename, char **argvec) {
-    if (LoadProgram(filename, argvec, currPCB) == ERROR || \
-		execProcess() == ERROR) {
+    if (LoadProgram(filename, argvec, currPCB) == ERROR || execProcess() == ERROR) {
 		return ERROR;
 	}
 	
@@ -97,20 +96,24 @@ void KernelExit(int status) {
 int KernelWait(int *status_ptr) {
     if (currPCB->numChildren == 0) 
         return ERROR;
-    if (peek_q(currPCB->zombieQueue) == NULL) {
+    if (peek_q(currPCB->zombieQ) == NULL) {
         blockProcess();
 		
     // ** process is now running & zombieQueue has children ** 
-    zombie_t *childPcbp = deq_q(currPCB->zombieQueue);
-	if (childPCB == NULL) return ERROR;
+    zombie_t *childPcbp = deq_q(currPCB->zombieQ);
+	if (childPcbp == NULL) return ERROR;
 	
-    &status_ptr = childPcbp->exit_status;
+    status_ptr = childPcbp->exit_status;
     return childPcbp->pid;
 }
 
-int KernelGetPid(void) {
-    return currPCB->pid; 
+int KernelGetPid() {
+    return currPCB->pid;
 }
+
+// int KernelGetPid() {
+//     return currPCB->pid; 
+// }
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {

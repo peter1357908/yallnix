@@ -21,6 +21,11 @@ typedef struct PCB {
 	u_long stackPfns[KERNEL_STACK_MAXSIZE / PAGESIZE];
 } PCB_t;
 
+typedef struct zombie {
+	int pid;
+	int exit_status;
+} zombie_t;
+
 
 PCB_t *currPCB;
 

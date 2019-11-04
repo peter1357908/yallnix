@@ -14,10 +14,6 @@ int nextPid;
 q_t *readyQ;
 q_t *blockedQ;
 q_t *sleepingQ;
-typedef struct zombie {
-	int pid;
-	int exit_status;
-} zombie_t;
 int tick_down_sleepers_q();
 PCB_t *remove_process_q(q_t *queue, int pid);
 
