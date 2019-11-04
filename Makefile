@@ -114,7 +114,11 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 
 all: $(ALL)	
 
+<<<<<<< Updated upstream
 clean:
+=======
+clean: 
+>>>>>>> Stashed changes
 	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
 
