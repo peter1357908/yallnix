@@ -234,7 +234,6 @@ int unblockProcess(int pid) {
 	return 0;
 }
 
-
 KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
 	TracePrintf(1, "switchBetween() called, currPCB->pid = %d, nextPcbP->pid = %d\n", currPCB->pid, ((PCB_t *) nextPcbP)->pid);
 	

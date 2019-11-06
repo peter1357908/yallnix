@@ -96,7 +96,6 @@ int blockProcess(void);
 // returns ERROR/0; moves a process from blockedQ to readyQ (does nothing else)
 int unblockProcess(int pid);
 
-
 /* when calling with currPcbP == NULL, assume that the currPCB is deleted already.
  */
 KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP);

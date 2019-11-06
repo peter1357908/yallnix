@@ -13,8 +13,7 @@ int KernelFork(void) {
     if (initProcess(&childPCB) == ERROR)
         return ERROR;
 
-    // copy PCB instance variables
-    memmove(childPCB->kctxt, parentPCB->kctxt, sizeof(KernelContext));
+    childPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
     memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
     childPCB->brk = parentPCB->brk;
 
@@ -45,13 +44,14 @@ int KernelFork(void) {
     currChildPte = childPCB->r1PageTable;
     currParentPte = parentPCB->r1PageTable;
     for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
-        if (currParentPte->valid == 1)
+        if (currParentPte->valid == 1) {
             // set tempPte's pfn to currChildPte's pfn
             setPageTableEntry(tempPte, 1, PROT_WRITE, currChildPte->pfn);
             /*  copy from parent v-addr to temp v-addr
                 this should copy parent's memory contents to child's
             */
             memmove(tempVAddr, (void *) addr, PAGESIZE);
+        }
         currChildPte++; 
         currParentPte++;
     }
