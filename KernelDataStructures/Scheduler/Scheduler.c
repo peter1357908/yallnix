@@ -123,6 +123,7 @@ int initScheduler() {
 
 
 int sleepProcess(int numRemainingDelayTicks) {
+	TracePrintf(1, "sleeping current process...\n");
 	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
 	
 	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
@@ -143,6 +144,7 @@ int tickDownSleepers(void) {
 
 
 int kickProcess() {
+	TracePrintf(1, "starting kickProcess()\n");
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
@@ -360,12 +362,13 @@ PCB_t *remove_process_q(q_t *queue, int pid) {
  * nodes can be removed in one tick_down_sleepers_q() call.
  */
 int tick_down_sleepers_q() {
+	TracePrintf(1, "tick_down_sleepers_q starting...\n");
 	if (sleepingQ == NULL) return ERROR;
 	qnode_t *currNode = sleepingQ->head;
 	if (currNode == NULL) return 0;
 	
 	PCB_t *pcbp = (PCB_t *) (currNode->item);
-	pcbp->numRemainingDelayTicks--;
+	(pcbp->numRemainingDelayTicks)--;
 	
 	// keep removing heads; if no ticks remain, move the current pcbp to readyQ
 	while (pcbp->numRemainingDelayTicks == 0) {
@@ -385,7 +388,7 @@ int tick_down_sleepers_q() {
 		// the queue is not empty yet, next iteration starts here
 		currNode = new_head;
 		pcbp = (PCB_t *) (currNode->item);
-		pcbp->numRemainingDelayTicks--;
+		(pcbp->numRemainingDelayTicks)--;
 	}
 	
 	

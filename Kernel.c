@@ -129,7 +129,7 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// no need to change MMU registers since REG_PTBR1 already points to initR1PageTable
 	
 	// allocate memory for starterKernelStack and starterKctxt
-	starterKernelStack = (void *) malloc(sizeof(KERNEL_STACK_MAXSIZE));
+	starterKernelStack = (void *) malloc(KERNEL_STACK_MAXSIZE);
 	if (starterKernelStack == NULL) {
 		Halt();
 	}

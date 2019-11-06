@@ -86,7 +86,7 @@ void KernelExit(int status) {
 	// TOTHINK: can we just check the PCB pointers?
 	// TODO: wrap Halt() with free functions
 	if (currPCB->pid == initPid) {
-		TracePrintf(1, "Init process exited; Calling Halt()...");
+		TracePrintf(1, "process exited; Calling Halt()...");
 		Halt();
 	}
 	
@@ -108,15 +108,13 @@ int KernelWait(int *status_ptr) {
 }
 
 int KernelGetPid() {
+    TracePrintf(1, "KernelGetPid() starting...");
     return currPCB->pid;
 }
 
-// int KernelGetPid() {
-//     return currPCB->pid; 
-// }
-
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
+    TracePrintf(1, "KernelBrk(%p) starting...\n", addr);
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;
     struct pte *targetPtep;
@@ -151,7 +149,8 @@ int KernelBrk(void *addr) {
 }
 
 int KernelDelay(int clock_ticks) {
-    if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
+    TracePrintf(1, "KernelDelay(%d) starting...\n", clock_ticks);
+    if (clock_ticks <= 0 || sleepProcess(clock_ticks) == ERROR) {
         return ERROR;
     }
 	

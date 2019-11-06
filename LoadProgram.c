@@ -211,6 +211,9 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
       currentPtep++;
   }
 
+// set proc->brk to next page after data
+  proc->brk = (void *) (VMEM_1_BASE + (data_npg + li.t_npg) * PAGESIZE);
+
   /*
    * Allocate memory for the user stack too.
    */

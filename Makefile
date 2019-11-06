@@ -115,7 +115,7 @@ CPPFLAGS= -m32 -fno-builtin -I. -I$(INCDIR) -g -DLINUX
 all: $(ALL)
 
 clean:
-	rm -f *~ TTYLOG* TRACE $(YALNIX_OUTPUT) $(USER_APPS)  core.*
+	rm -f *~ TTYLOG* TRACE.txt $(YALNIX_OUTPUT) $(USER_APPS)  core.*
 	find . -name '*.o' -delete
 
 count:
@@ -127,7 +127,7 @@ list:
 kill:
 	killall yalnixtty yalnixnet yalnix
 	
-TEST_FLAGS = -t -lk 1 -lh 2 -lu 1
+TEST_FLAGS = -t TRACE.txt -lk 1 -lh 2 -lu 1
 	
 test: all
 	yalnix $(TEST_FLAGS)

@@ -11,18 +11,25 @@ void handleTrapKernel(UserContext *uctxt) {
     switch(uctxt->code) {
         case YALNIX_FORK:
             KernelFork();
+            break;
         case YALNIX_EXEC:
-            KernelExec((uctxt->regs)[0], (uctxt->regs)[1]);
+            KernelExec((char *)(uctxt->regs)[0], (char **)(uctxt->regs)[1]);
+            break;
         case YALNIX_EXIT:
-            KernelExit((uctxt->regs)[0]);
+            KernelExit((int)(uctxt->regs)[0]);
+            break;
         case YALNIX_WAIT:
-            KernelWait((uctxt->regs)[0]);
+            KernelWait((int *)(uctxt->regs)[0]);
+            break;
         case YALNIX_GETPID:
             KernelGetPid();
+            break;
         case YALNIX_BRK:
-            KernelBrk((uctxt->regs)[0]);
+            KernelBrk((void *)(uctxt->regs)[0]);
+            break;
         case YALNIX_DELAY:
-            KernelDelay((uctxt->regs)[0]);
+            KernelDelay((int)(uctxt->regs)[0]);
+            break;
         // case YALNIX_TTY_READ:
         //     KernelTtyRead();
         // case YALNIX_TTY_WRITE:
@@ -54,7 +61,7 @@ void handleTrapKernel(UserContext *uctxt) {
 }
 
 void handleTrapClock(UserContext *uctxt) {
-    TracePrintf(1, "\nhandleTrapClock() called\n");
+    TracePrintf(1, "handleTrapClock() called\n");
  
     if (tickDownSleepers() == ERROR || \
 		kickProcess() == ERROR) {
@@ -67,7 +74,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
-	TracePrintf(1, "\nstarting  handleTrapMemory()\n");
+	TracePrintf(1, "starting  handleTrapMemory()\n");
     void *addr = uctxt->addr;
     void *sp = uctxt->sp; 
 	int targetPageNumber = (int) addr>>PAGESHIFT;
