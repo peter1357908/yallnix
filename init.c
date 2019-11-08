@@ -1,4 +1,5 @@
 #include <yalnix.h>
+#include <stdio.h>
 
 void main() {
 
@@ -17,18 +18,18 @@ void main() {
 
 	if (0 == pid) {
 		// NOTE: execTest doesn't use args, we'll want to test this later
-		TracePrintf(1, "\nchild is calling Exec()...\n");
-		// Exec("execTest", (void *) 0X0); 
+		// TracePrintf(1, "\nchild is calling Exec()...\n");
+		// Exec("execTest", NULL); 
 		TracePrintf(1, "\nchild is exiting w/ status code == 1...\n");
 		Exit(1);
 	}
-	// else {
-	// 	int status;
-	// 	// TracePrintf(1, "\nparent calling Wait()\n");
-	// 	// Wait(&status);
-	// 	// TracePrintf(1, "\nstatus = %d\n", status);
-	// }	
+	else {
+		int status;
+		TracePrintf(1, "\nparent calling Wait()\n");
+		Wait(&status);
+		TracePrintf(1, "\nstatus = %d\n", status);
+	}	
 
-	// TracePrintf(1, "\nparent exiting w/ status code == 0...\n");
+	TracePrintf(1, "\nparent exiting w/ status code == 0...\n");
 	Exit(0);
 }

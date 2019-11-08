@@ -78,37 +78,37 @@ int kickProcess(void);
 int runProcess(int pid);
 
 
-// return ERROR/0; called after exec.
+// return ERROR/0; called in KernelExec().
 int execProcess(void);
+
+
+/* return ERROR/0; called by the end of KernelFork() (after allocating 
+ * kctxt for the child, filling up the child's r1PageTable, etc.)
+ *
+ * currently blocks the parent and runs the child process next (TOTHINK: this
+ * behavior also depends on forkTo(); do we really want to switch to child?)
+ */
+int forkProcess(int pid);
 
 
 /* returns ERROR/0; moves the current process into its parent's zombieQ and runs another 
  * ready process. If the current process has no parent, just delete the process and run
  * another process like kickProcess().
+ * 
+ * assumes that if the parent attribute is not NULL, then the parent is still in operation
+ * this invariant is maintained by exitProcess() itself, currently.
  */
-int zombifyProcess(int exit_status);
+int exitProcess(int exit_status);
 
 
 // returns ERROR/0; blocks the current process and runs another ready process
 int blockProcess(void);
 
 
-// returns ERROR/0; moves a process from blockedQ to readyQ (does nothing else)
+/* returns ERROR/0; moves a process from blockedQ to readyQ (does nothing else)
+ * if the process is not in the blockedQ, nothing happens (returns 0).
+ */
 int unblockProcess(int pid);
-
-/* when calling with currPcbP == NULL, assume that the currPCB is deleted already.
- */
-KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP);
-
-
-/* delete_process() frees a PCB and all content within, including its uctxt,
- * kctxt, and r1PageTable. Also frees the allocated physical memory. Depends
- * on the FrameList module. Assumes that the call is followed by a "currPcbP=NULL"
- * KernelContextSwitch, and thus does not flush the TLB.
- *
- * Used along with the Queue module, and thus the signature.
- */
-void delete_process(void *pcbp_item);
 
 
 #endif /*_Scheduler_h*/

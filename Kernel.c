@@ -89,6 +89,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	
 	WriteRegister(REG_VM_ENABLE, 1);
 	
+	// calculate a few global addresses
+	r0StackBasePtep = r0PageTable + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
+	tempPtep = r0StackBasePtep - 1;
+	tempVAddr =  (void *) (KERNEL_STACK_BASE - PAGESIZE);
+	
+	
 	/* initialization logic: "init" requires special initialization because
 	 * its kernel stack is the same as the current kernel stack, and its
 	 * r1PageTable is already initialized as initR1PageTable; while "idle"
@@ -138,11 +144,13 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		Halt();
 	}
 	
-	/* ------------ every new-process-to-run-next starts here ------------ */
+	
 	/* ------------ current Kctxt and Kernel Stack are copied ------------ */
 	if (KernelContextSwitch(getStarterKernelState, NULL, NULL) == ERROR) {
 		Halt();
 	}
+	
+	/* ------------ every new-process-to-run-next starts here ------------ */
 	
 	memmove(uctxt, currPCB->uctxt, sizeof(UserContext));
 

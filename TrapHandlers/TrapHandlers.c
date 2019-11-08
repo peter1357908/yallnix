@@ -61,12 +61,14 @@ void handleTrapKernel(UserContext *uctxt) {
 }
 
 void handleTrapClock(UserContext *uctxt) {
-    TracePrintf(1, "handleTrapClock() called\n");
+    TracePrintf(1, "handleTrapClock() called; currPCB->pid = %d\n", currPCB->pid);
  
     if (tickDownSleepers() == ERROR || \
 		kickProcess() == ERROR) {
 		Halt();
 	}
+	
+	TracePrintf(1, "handleTrapClock() execution finished; currPCB->pid = %d\n", currPCB->pid);
 }
 
 void handleTrapIllegal(UserContext *uctxt) {

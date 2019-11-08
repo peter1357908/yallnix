@@ -10,58 +10,53 @@ int KernelFork(void) {
     PCB_t *parentPCB = currPCB;
     PCB_t *childPCB;  
 
-    if (initProcess(&childPCB) == ERROR)
-        return ERROR;
+    if (initProcess(&childPCB) == ERROR) return ERROR;
 
     childPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
     memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
     childPCB->brk = parentPCB->brk;
 
-    // copy parent's region 1 PTEs & allocate new physical frame if valid == 1
-    int i;
+    /* Copy the parent's r1 pagetable and map each entry with a new frame
+	 * then copy the parent's r1 content into those new frames.
+	 *
+	 * Since virtual memory for parent & child process will be the same,
+     * we use a "temp" page located below the Kernel Stack to write to
+     * the child process's physical memory.
+	 */
+    int addr;
     u_long pfn; 
     struct pte *currParentPte = parentPCB->r1PageTable;
     struct pte *currChildPte = childPCB->r1PageTable;
-    for (i = 0; i < MAX_PT_LEN; i++) {
-        if (currParentPte->valid == 1) {
-            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
-            setPageTableEntry(currChildPte, currParentPte->valid, currParentPte->prot, pfn);
-        }
-
-        currChildPte++;
-        currParentPte++; 
-    }
-    
-    // NOTE: 
-    // virtual memory for parent & child process will be the same,
-    // so we will use a "temp" page located below the Kernel Stack
-    // to write to the child process's memory
-    struct pte *tempPte = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN - 1; 
-    void *tempVAddr =  (void *) (KERNEL_STACK_BASE - PAGESIZE); 
-    int addr;
-
-    // copy R1 memory
-    currChildPte = childPCB->r1PageTable;
-    currParentPte = parentPCB->r1PageTable;
     for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
         if (currParentPte->valid == 1) {
-            // set tempPte's pfn to currChildPte's pfn
-            setPageTableEntry(tempPte, 1, PROT_WRITE, currChildPte->pfn);
-            /*  copy from parent v-addr to temp v-addr
-                this should copy parent's memory contents to child's
+            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+			/* NOTE: unlike LoadProgram(), we don't have to worry about the stack
+			 * being READ|EXEC, because we copy via the tempPte manipulation
+			 */
+			 
+			// set tempPte's pfn to currChildPte's pfn
+            setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
+            /* copy from parent v-addr to temp v-addr
+               this should copy parent's memory contents to child's memory
             */
             memmove(tempVAddr, (void *) addr, PAGESIZE);
+			
+            setPageTableEntry(currChildPte, 1, currParentPte->prot, pfn);
         }
-        currChildPte++; 
+		
         currParentPte++;
+		currChildPte++;
     }
+	
+	// reset the tempPte
+	setPageTableEntry(tempPtep, 0, PROT_NONE, 0);
 
     // NOTE: the Kernel Stack is copied over during the context switch
 
     childPCB->parent = parentPCB;
-    parentPCB->numChildren++; 
+    (parentPCB->numChildren)++; 
     
-    if (runProcess(childPCB->pid) == ERROR) return ERROR;
+    if (forkProcess(childPCB->pid) == ERROR) return ERROR;
 
     if (currPCB->pid == parentPCB->pid) {
         return childPCB->pid;
@@ -86,19 +81,22 @@ void KernelExit(int status) {
 	// TOTHINK: can we just check the PCB pointers?
 	// TODO: wrap Halt() with free functions
 	if (currPCB->pid == initPid) {
-		TracePrintf(1, "process exited; Calling Halt()...");
+		TracePrintf(1, "init process exited; Calling Halt()...");
 		Halt();
 	}
 	
-	if (zombifyProcess(status) == ERROR) Halt();
+	if (exitProcess(status) == ERROR) Halt();
 }
 
 int KernelWait(int *status_ptr) {
-    if (currPCB->numChildren == 0) 
+    if (currPCB->numChildren <= 0) 
         return ERROR;
-    if (peek_q(currPCB->zombieQ) == NULL) 
-        blockProcess();
-		
+	// if the parent has no exited children yet, block the parent...
+    if (peek_q(currPCB->zombieQ) == NULL) {
+        if (blockProcess() == ERROR) {
+			Halt();
+		}
+	}
     // ** process is now running & zombieQueue has children ** 
     zombie_t *childPcbp = deq_q(currPCB->zombieQ);
 	if (childPcbp == NULL) return ERROR;
@@ -150,10 +148,11 @@ int KernelBrk(void *addr) {
 
 int KernelDelay(int clock_ticks) {
     TracePrintf(1, "KernelDelay(%d) starting...\n", clock_ticks);
-    if (clock_ticks <= 0 || sleepProcess(clock_ticks) == ERROR) {
-        return ERROR;
-    }
-	
+	if (clock_ticks != 0) {
+		if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
+			return ERROR;
+		}
+	}
     // scheduler should grab another ready process & context switch into it
     return 0;
 }

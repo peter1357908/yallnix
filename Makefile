@@ -130,10 +130,14 @@ kill:
 TEST_FLAGS = -t TRACE.txt -lk 1 -lh 2 -lu 1
 	
 test: all
-	yalnix $(TEST_FLAGS)
+	$(YALNIX_OUTPUT) $(TEST_FLAGS)
 	
 gdb: all
-	gdb --args yalnix $(TEST_FLAGS)
+	gdb --args $(YALNIX_OUTPUT) $(TEST_FLAGS)
+	
+# test the context switching part only... given that execTest is a simple loop
+ctxt: all
+	$(YALNIX_OUTPUT) $(TEST_FLAGS) execTest
 
 no-core:
 	rm -f core.*

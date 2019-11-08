@@ -14,8 +14,14 @@ int nextPid;
 q_t *readyQ;
 q_t *blockedQ;
 q_t *sleepingQ;
-int tick_down_sleepers_q();
-PCB_t *remove_process_q(q_t *queue, int pid);
+
+KernelContext *switchBetween(KernelContext *, void *, void *);
+KernelContext *forkTo(KernelContext *, void *, void *);
+void free_zombie_t(void *);
+void delete_process(void *);
+
+PCB_t *remove_process_q(q_t *, int);
+int tick_down_sleepers_q(void);
 
 
 /* ------ the following are for initialization ------ */
@@ -84,7 +90,6 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
     initPCB->numRemainingDelayTicks = 0;
 	
 	// calculate r0StackBasePtep;
-    struct pte *r0StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
     struct pte *currPtep = r0StackBasePtep;
     
 	int i;
@@ -123,7 +128,7 @@ int initScheduler() {
 
 
 int sleepProcess(int numRemainingDelayTicks) {
-	TracePrintf(1, "sleeping current process...\n");
+	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d\n", currPCB->pid);
 	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
 	
 	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
@@ -132,9 +137,7 @@ int sleepProcess(int numRemainingDelayTicks) {
 	
 	if (nextPCB == NULL) return ERROR;
 	
-	if (KernelContextSwitch(switchBetween, currPCB, nextPCB) == ERROR) return ERROR;
-	
-	return 0;
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
 
@@ -144,42 +147,65 @@ int tickDownSleepers(void) {
 
 
 int kickProcess() {
-	TracePrintf(1, "starting kickProcess()\n");
+	TracePrintf(1, "kickProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
 	if (nextPCB == NULL) return ERROR;
 	
-	if (KernelContextSwitch(switchBetween, currPCB, nextPCB) == ERROR) return ERROR;
-	
-	return 0;
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
 
 int runProcess(int pid) {
+	TracePrintf(1, "runProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = remove_process_q(readyQ, pid);
 	
+	/* nextPCB being NULL may mean that the target process is not ready yet,
+	 * so we try to run something else instead.
+	 */
 	if (nextPCB == NULL) {
 		nextPCB = (PCB_t *) deq_q(readyQ);
 		
 		if (nextPCB == NULL) return ERROR;
 	}
 	
-	if (KernelContextSwitch(switchBetween, currPCB, nextPCB) == ERROR) return ERROR;
-	
-	return 0;
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
 
 int execProcess() {
+	TracePrintf(1, "execProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	return KernelContextSwitch(switchBetween, NULL, currPCB);
 }
 
 
-int zombifyProcess(int exit_status) {
+int forkProcess(int pid) {
+	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
+	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+	
+	/* TOTHINK: at least for fork(), there is no point to enq_q() into the readyQ
+	 * only to get pulled back out here...
+	 */
+	PCB_t *childPCB = remove_process_q(readyQ, pid);
+	
+	/* if we can't find the child in the readyQ, or that the child we found is 
+	 * actually not a child of the current process... then we have a problem.
+	 */
+	if (childPCB == NULL || \
+		childPCB->parent == NULL || \
+		childPCB->parent->pid != currPCB->pid) {
+		return ERROR;
+	}
+	return KernelContextSwitch(forkTo, NULL, childPCB);
+}
+
+
+int exitProcess(int exit_status) {
+	TracePrintf(1, "exitProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	PCB_t *parentPcbp = currPCB->parent;
 	
 	if (parentPcbp != NULL) {
@@ -208,57 +234,67 @@ int zombifyProcess(int exit_status) {
 }
 
 
-// returns ERROR/0; blocks the current process and runs another ready process
 int blockProcess(void) {
+	TracePrintf(1, "blockProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	if (enq_q(blockedQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
 	if (nextPCB == NULL) return ERROR;
 	
-	if (KernelContextSwitch(switchBetween, currPCB, nextPCB) == ERROR) return ERROR;
-	
-	return 0;
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
 
-// returns ERROR/0; moves a process from blockedQ to readyQ (does nothing else)
 int unblockProcess(int pid) {
+	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
+	// first test if the queue is NULL (fatal error)
+	if (blockedQ == NULL) {
+		return ERROR;
+	}
+	
 	PCB_t *unblockedPCB = remove_process_q(blockedQ, pid);
 	
-	// TODO: may require discerning between no PCB with pid and bad queue
-	if (unblockedPCB == NULL) return ERROR;
-	
-	if (enq_q(readyQ, unblockedPCB) == ERROR) return ERROR;
+	/* since we made sure the queue is not NULL, if unblockedPCB is NULL,
+	 * then it just isn't blocked. Not an error (imagine multiple children,
+	 * upon exiting, each tries to unblock a waiting parent even though
+	 * the parent only waited for one).
+	 */
+	if (unblockedPCB != NULL) {
+		if (enq_q(readyQ, unblockedPCB) == ERROR) return ERROR;
+	}
 	
 	return 0;
 }
 
+
+/* -------- scheduler-specific functions -------- */
+
+/* when calling with currPcbP == NULL, assume that the currPCB is deleted already. */
 KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
 	TracePrintf(1, "switchBetween() called, currPCB->pid = %d, nextPcbP->pid = %d\n", currPCB->pid, ((PCB_t *) nextPcbP)->pid);
 	
 	if (currPcbP != NULL) {
 		// copy kctxt into currPcbP (after this, no more operation on currPcbP)
-		// TOTHINK: is "currPcbP" always the same as "currPCB"?
 		memmove((((PCB_t *) currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
 	}
 	
     // set the global currPCB to be the PCB for the next process
     currPCB = (PCB_t *) nextPcbP;
 	
-	// switch kernel stack, populate PTEs from r0StackBase to r0StackLimit
-	struct pte *r0StackBasePtep = ((struct pte *) ReadRegister(REG_PTBR0)) + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
+	// switch kernel stack by changing the pfn mappings for corresponding PTEs
     struct pte *currPtep = r0StackBasePtep;
 	
     int i;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
-        // NOTE: kernel stack PTEs are flushed inside setPageTableEntry() method
+        // NOTE: kernel stack MMU entries are flushed inside setPageTableEntry() method
         setPageTableEntry(currPtep, 1, (PROT_READ|PROT_WRITE), (currPCB->stackPfns)[i]);
         currPtep++;
     }
 
-	/* if the currPCB (nextPcbP) is a new process, copy into it the starter kernel context
-	 * and the starter kernel stack (must happen after kernel stack switching)
+	/* if the currPCB (now nextPcbP) is a new process, copy into it the
+	 * starter kernel context and the starter kernel stack (must happen
+	 * after kernel stack switching)
 	 */ 
 	if (currPCB->kctxt == NULL) {
 		currPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
@@ -267,7 +303,7 @@ KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nex
 	}
 	
     // change MMU registers for R1 & flush R1 TLB
-    WriteRegister(REG_PTBR1, (unsigned int) ((PCB_t *) nextPcbP)->r1PageTable);
+    WriteRegister(REG_PTBR1, (unsigned int) (currPCB->r1PageTable));
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 	
     // return pointer to kctxt of nextPcbP
@@ -275,16 +311,74 @@ KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nex
 }
 
 
-void free_zombieQ(void *zombiePcbp_item) {
+/* assumes that the currPCB is of the parent process; copy currKctxt to the child
+ * because currKctxt is exactly what the parent has for kctxt. Only used in
+ * forkProcess().
+ */
+KernelContext *forkTo(KernelContext *currKctxt, void *nil0, void *childPcbP) {
+	TracePrintf(1, "forkTo() called, currPCB->pid = %d, childPcbP->pid = %d\n", currPCB->pid, ((PCB_t *) childPcbP)->pid);
+	
+	// copy kctxt into the parent (which is assumed to be the currPCB)
+	memmove(currPCB->kctxt, currKctxt, sizeof(KernelContext));
+	
+	// the child will be running next
+    currPCB = (PCB_t *) childPcbP;
+	
+	// switch kernel stack AND populate the child's with the content of the parent's
+	int i;
+	u_long pfn;
+	int addr = KERNEL_STACK_BASE;
+	struct pte *currPtep = r0StackBasePtep;
+    for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
+		/* NOTE: the following is analogous to the tempPte manipulation in
+		 * fork(), but setPageTableEntry() MUST come last, because otherwise
+		 * we will lose track of the parent's content (whereas in fork(), we
+		 * do not modify the current page table, which is the parent's).
+		 */
+		pfn = (currPCB->stackPfns)[i];
+		
+		setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
+		memmove(tempVAddr, (void *) addr, PAGESIZE);
+		
+        // NOTE: kernel stack MMU entries are flushed inside setPageTableEntry() method
+        setPageTableEntry(currPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+        currPtep++;
+		addr += PAGESIZE;
+    }
+	
+	// reset the tempPte
+	setPageTableEntry(tempPtep, 0, PROT_NONE, 0);
+
+	// copy the parent's current kernel context, which is currKctxt
+	memmove(currPCB->kctxt, currKctxt, sizeof(KernelContext));
+	
+    // change MMU registers for R1 & flush R1 TLB
+    WriteRegister(REG_PTBR1, (unsigned int) (currPCB->r1PageTable));
+    WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
+	
+    // return pointer to kctxt of the childPcbP
+    return currPCB->kctxt;
+}
+
+
+// only used in delete_process()
+void free_zombie_t(void *zombiePcbp_item) {
 	free(zombiePcbp_item);
 }
 
 
+/* delete_process() frees a PCB and all content within, including its uctxt,
+ * kctxt, and r1PageTable. Also frees the allocated physical memory. Depends
+ * on the FrameList module. Assumes that the call is followed by a "currPcbP=NULL"
+ * KernelContextSwitch, and thus does not flush the TLB.
+ *
+ * Used along with the Queue module, and thus the signature.
+ */
 void delete_process(void *pcbp_item) {
 	PCB_t *pcbp = (PCB_t *) pcbp_item;
 	free(pcbp->uctxt);
 	free(pcbp->kctxt);
-	free_q(pcbp->zombieQ, free_zombieQ);
+	free_q(pcbp->zombieQ, free_zombie_t);
 	
 	// free the frames in the r1PageTable, and then the r1PageTable
 	struct pte *ptep = pcbp->r1PageTable;
@@ -370,7 +464,7 @@ int tick_down_sleepers_q() {
 	(pcbp->numRemainingDelayTicks)--;
 	
 	// keep removing heads; if no ticks remain, move the current pcbp to readyQ
-	while (pcbp->numRemainingDelayTicks == 0) {
+	while (pcbp->numRemainingDelayTicks <= 0) {
 		// remove the current head from sleepingQ
 		qnode_t *new_head = currNode->node_behind;
 		free(currNode);		
@@ -397,10 +491,10 @@ int tick_down_sleepers_q() {
 	while (node_behind != NULL) {
 		node_doubly_behind = node_behind->node_behind;
 		pcbp = (PCB_t *) (node_behind->item);
-		pcbp->numRemainingDelayTicks--;
+		(pcbp->numRemainingDelayTicks)--;
 		
 		// if no ticks remain, move the current pcbp to readyQ
-		if (pcbp->numRemainingDelayTicks == 0) {
+		if (pcbp->numRemainingDelayTicks <= 0) {
 			free(node_behind);
 			enq_q(readyQ, pcbp);
 			
