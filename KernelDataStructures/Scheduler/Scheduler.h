@@ -55,7 +55,7 @@ int initScheduler(void);
 
 
 /* return ERROR/0; enqueue some process in sleepingQ and setting their 
- * numRemainingDelayTicks. Do kickProcess().
+ * numRemainingDelayTicks. Do kickProcess(). Do nothing if input integer is non-positive.
  */
 int sleepProcess(int numRemainingDelayTicks);
 
@@ -65,15 +65,16 @@ int tickDownSleepers(void);
 
 
 /* return ERROR/0; kicks the current process into readyQ and runs another ready process.
- * Theoretically, if the queue was empty, the same process is run again (for example, when
- * init is the only other process and sleeps, then idle gets the CPU repeatedly).
+ * If the readyQ was empty, does nothing (for example, when init is the only other 
+ * process and sleeps, then idle gets the CPU repeatedly).
  */
 int kickProcess(void);
 
 
 /* returns ERROR/0; kicks the current process into readyQ and runs the target process
  * if the process is ready. If the target process is not ready, just run another process
- * like kickProcess().
+ * like kickProcess(). If the readyQ was empty, does nothing (like in kickProcess()).
+ * If the pid given is the same as the currPCB->pid, does nothing.
  */
 int runProcess(int pid);
 

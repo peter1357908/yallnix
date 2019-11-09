@@ -128,7 +128,13 @@ int initScheduler() {
 
 
 int sleepProcess(int numRemainingDelayTicks) {
-	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d\n", currPCB->pid);
+	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d, ticks = %d\n", currPCB->pid, numRemainingDelayTicks);
+	
+	if (numRemainingDelayTicks <= 0) {
+		TracePrintf(1, "sleepProcess() exiting with 0 because given non-positive ticks\n");
+		return 0;
+	}
+	
 	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
 	
 	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
@@ -148,6 +154,16 @@ int tickDownSleepers(void) {
 
 int kickProcess() {
 	TracePrintf(1, "kickProcess() called, currPCB->pid = %d\n",  currPCB->pid);
+	
+	// first make sure that the readyQ is not NULL
+	if (readyQ == NULL) return ERROR;
+	
+	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
+	if (peek_q(readyQ) == NULL) {
+		TracePrintf(1, "kickProcess() exiting with 0 because readyQ is empty\n");
+		return 0;
+	}
+	
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
@@ -160,6 +176,21 @@ int kickProcess() {
 
 int runProcess(int pid) {
 	TracePrintf(1, "runProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
+	
+	if (pid == currPCB->pid) {
+		TracePrintf(1, "runProcess() exiting with 0 because (pid == currPCB->pid)\n");
+		return 0;
+	}
+	
+	// first make sure that the readyQ is not NULL
+	if (readyQ == NULL) return ERROR;
+	
+	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
+	if (peek_q(readyQ) == NULL) {
+		TracePrintf(1, "runProcess() exiting with 0 because readyQ is empty\n");
+		return 0;
+	}
+	
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = remove_process_q(readyQ, pid);
@@ -170,6 +201,7 @@ int runProcess(int pid) {
 	if (nextPCB == NULL) {
 		nextPCB = (PCB_t *) deq_q(readyQ);
 		
+		// somehow we still got NULL - something horrible happened
 		if (nextPCB == NULL) return ERROR;
 	}
 	
@@ -205,7 +237,7 @@ int forkProcess(int pid) {
 
 
 int exitProcess(int exit_status) {
-	TracePrintf(1, "exitProcess() called, currPCB->pid = %d\n",  currPCB->pid);
+	TracePrintf(1, "exitProcess() called, currPCB->pid = %d, exit_status = %d\n",  currPCB->pid, exit_status);
 	PCB_t *parentPcbp = currPCB->parent;
 	
 	if (parentPcbp != NULL) {
@@ -247,7 +279,7 @@ int blockProcess(void) {
 
 
 int unblockProcess(int pid) {
-	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
+	TracePrintf(1, "unblockProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
 	// first test if the queue is NULL (fatal error)
 	if (blockedQ == NULL) {
 		return ERROR;
@@ -271,12 +303,14 @@ int unblockProcess(int pid) {
 /* -------- scheduler-specific functions -------- */
 
 /* when calling with currPcbP == NULL, assume that the currPCB is deleted already. */
-KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {
-	TracePrintf(1, "switchBetween() called, currPCB->pid = %d, nextPcbP->pid = %d\n", currPCB->pid, ((PCB_t *) nextPcbP)->pid);
-	
+KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {	
 	if (currPcbP != NULL) {
+		TracePrintf(1, "switchBetween() called, currPcbP->pid = %d, nextPcbP->pid = %d\n", ((PCB_t *) currPcbP)->pid, ((PCB_t *) nextPcbP)->pid);
 		// copy kctxt into currPcbP (after this, no more operation on currPcbP)
 		memmove((((PCB_t *) currPcbP)->kctxt), currKctxt, sizeof(KernelContext));
+	}
+	else {
+		TracePrintf(1, "switchBetween() called, currPcbP = NULL, nextPcbP->pid = %d\n", ((PCB_t *) nextPcbP)->pid);
 	}
 	
     // set the global currPCB to be the PCB for the next process
@@ -375,6 +409,12 @@ void free_zombie_t(void *zombiePcbp_item) {
  * Used along with the Queue module, and thus the signature.
  */
 void delete_process(void *pcbp_item) {
+	if (pcbp_item == NULL) {
+		TracePrintf(1, "delete_process() trying to delete a NULL, halting.\n");
+		Halt();
+	}
+	
+	TracePrintf(1, "delete_process() called, deleting process whose pid = %d\n", ((PCB_t *) pcbp_item)->pid);
 	PCB_t *pcbp = (PCB_t *) pcbp_item;
 	free(pcbp->uctxt);
 	free(pcbp->kctxt);
@@ -455,16 +495,19 @@ PCB_t *remove_process_q(q_t *queue, int pid) {
  * nodes can be removed in one tick_down_sleepers_q() call.
  */
 int tick_down_sleepers_q() {
-	TracePrintf(1, "tick_down_sleepers_q starting...\n");
+	TracePrintf(1, "tick_down_sleepers_q() called, currPCB->pid = %d\n", currPCB->pid);
 	if (sleepingQ == NULL) return ERROR;
 	qnode_t *currNode = sleepingQ->head;
 	if (currNode == NULL) return 0;
 	
 	PCB_t *pcbp = (PCB_t *) (currNode->item);
 	(pcbp->numRemainingDelayTicks)--;
+	TracePrintf(1, "Sleeper whose pid = %d ticked down to %d\n", pcbp->pid, pcbp->numRemainingDelayTicks);
 	
 	// keep removing heads; if no ticks remain, move the current pcbp to readyQ
 	while (pcbp->numRemainingDelayTicks <= 0) {
+		TracePrintf(1, "Sleeper whose pid = %d is waking up during head removal\n", pcbp->pid);
+		
 		// remove the current head from sleepingQ
 		qnode_t *new_head = currNode->node_behind;
 		free(currNode);		
@@ -482,6 +525,7 @@ int tick_down_sleepers_q() {
 		currNode = new_head;
 		pcbp = (PCB_t *) (currNode->item);
 		(pcbp->numRemainingDelayTicks)--;
+		TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
 	}
 	
 	
@@ -492,9 +536,12 @@ int tick_down_sleepers_q() {
 		node_doubly_behind = node_behind->node_behind;
 		pcbp = (PCB_t *) (node_behind->item);
 		(pcbp->numRemainingDelayTicks)--;
+		TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during non-head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
 		
 		// if no ticks remain, move the current pcbp to readyQ
 		if (pcbp->numRemainingDelayTicks <= 0) {
+			TracePrintf(1, "Sleeper whose pid = %d is waking up during non-head removal\n", pcbp->pid);
+
 			free(node_behind);
 			enq_q(readyQ, pcbp);
 			

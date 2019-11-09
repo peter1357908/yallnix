@@ -7,6 +7,7 @@
 #include "../Kernel.h"
 
 int KernelFork(void) {
+	TracePrintf(1, "KernelFork() called, currPCB->pid = %d\n",  currPCB->pid);
     PCB_t *parentPCB = currPCB;
     PCB_t *childPCB;  
 
@@ -57,6 +58,8 @@ int KernelFork(void) {
     (parentPCB->numChildren)++; 
     
     if (forkProcess(childPCB->pid) == ERROR) return ERROR;
+	
+	TracePrintf(1, "Inside KernelFork(), after forkProcess(), currPCB->pid = %d\n",  currPCB->pid);
 
     if (currPCB->pid == parentPCB->pid) {
         return childPCB->pid;
@@ -70,6 +73,7 @@ int KernelFork(void) {
 }
 
 int KernelExec(char *filename, char **argvec) {
+	TracePrintf(1, "KernelExec() called, currPCB->pid = %d\n",  currPCB->pid);
     if (LoadProgram(filename, argvec, currPCB) == ERROR || execProcess() == ERROR) {
 		return ERROR;
 	}
@@ -78,10 +82,11 @@ int KernelExec(char *filename, char **argvec) {
 }
     
 void KernelExit(int status) {
+	TracePrintf(1, "KernelExit() called, currPCB->pid = %d\n",  currPCB->pid);
 	// TOTHINK: can we just check the PCB pointers?
 	// TODO: wrap Halt() with free functions
 	if (currPCB->pid == initPid) {
-		TracePrintf(1, "init process exited; Calling Halt()...");
+		TracePrintf(1, "init process exited; Calling Halt()...\n");
 		Halt();
 	}
 	
@@ -89,6 +94,7 @@ void KernelExit(int status) {
 }
 
 int KernelWait(int *status_ptr) {
+	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
     if (currPCB->numChildren <= 0) 
         return ERROR;
 	// if the parent has no exited children yet, block the parent...
@@ -106,13 +112,13 @@ int KernelWait(int *status_ptr) {
 }
 
 int KernelGetPid() {
-    TracePrintf(1, "KernelGetPid() starting...");
+    TracePrintf(1, "KernelGetPid() called, currPCB->pid = %d\n",  currPCB->pid);
     return currPCB->pid;
 }
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
-    TracePrintf(1, "KernelBrk(%p) starting...\n", addr);
+    TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;
     struct pte *targetPtep;
@@ -147,7 +153,7 @@ int KernelBrk(void *addr) {
 }
 
 int KernelDelay(int clock_ticks) {
-    TracePrintf(1, "KernelDelay(%d) starting...\n", clock_ticks);
+    TracePrintf(1, "KernelDelay() called, currPCB->pid = %d, clock_ticks = %d\n",  currPCB->pid, clock_ticks);
 	if (clock_ticks != 0) {
 		if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
 			return ERROR;

@@ -1,3 +1,5 @@
+// see manual page 44
+
 #include <hardware.h>
 #include <yalnix.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
@@ -10,25 +12,25 @@ void handleTrapKernel(UserContext *uctxt) {
     // use the code stored in uctxt to call the corresponding syscall functions.
     switch(uctxt->code) {
         case YALNIX_FORK:
-            KernelFork();
+            (uctxt->regs)[0] = (u_long) KernelFork();
             break;
         case YALNIX_EXEC:
-            KernelExec((char *)(uctxt->regs)[0], (char **)(uctxt->regs)[1]);
+            (uctxt->regs)[0] = (u_long) KernelExec((char *)(uctxt->regs)[0], (char **)(uctxt->regs)[1]);
             break;
         case YALNIX_EXIT:
             KernelExit((int)(uctxt->regs)[0]);
             break;
         case YALNIX_WAIT:
-            KernelWait((int *)(uctxt->regs)[0]);
+            (uctxt->regs)[0] = (u_long) KernelWait((int *)(uctxt->regs)[0]);
             break;
         case YALNIX_GETPID:
-            KernelGetPid();
+            (uctxt->regs)[0] = (u_long) KernelGetPid();
             break;
         case YALNIX_BRK:
-            KernelBrk((void *)(uctxt->regs)[0]);
+            (uctxt->regs)[0] = (u_long) KernelBrk((void *)(uctxt->regs)[0]);
             break;
         case YALNIX_DELAY:
-            KernelDelay((int)(uctxt->regs)[0]);
+            (uctxt->regs)[0] = (u_long) KernelDelay((int)(uctxt->regs)[0]);
             break;
         // case YALNIX_TTY_READ:
         //     KernelTtyRead();
@@ -61,8 +63,7 @@ void handleTrapKernel(UserContext *uctxt) {
 }
 
 void handleTrapClock(UserContext *uctxt) {
-    TracePrintf(1, "handleTrapClock() called; currPCB->pid = %d\n", currPCB->pid);
- 
+    TracePrintf(1, "handleTrapClock() called, currPCB->pid = %d\n", currPCB->pid);
     if (tickDownSleepers() == ERROR || \
 		kickProcess() == ERROR) {
 		Halt();
@@ -76,7 +77,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 }
 
 void handleTrapMemory(UserContext *uctxt) {
-	TracePrintf(1, "starting  handleTrapMemory()\n");
+	TracePrintf(1, "handleTrapMemory() called, currPCB->pid = %d\n", currPCB->pid);
     void *addr = uctxt->addr;
     void *sp = uctxt->sp; 
 	int targetPageNumber = (int) addr>>PAGESHIFT;
