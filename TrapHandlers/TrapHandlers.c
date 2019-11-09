@@ -133,6 +133,6 @@ void handleTrapDisk(UserContext *uctxt) {
 }
 
 void handleNothing(UserContext *uctxt) {
-    TracePrintf(1, "handleTrapDisk() called, currPCB->pid = %d. Halting...\n", currPCB->pid);
+    TracePrintf(1, "handleNothing() called, currPCB->pid = %d. Halting...\n", currPCB->pid);
 	Halt();
 }

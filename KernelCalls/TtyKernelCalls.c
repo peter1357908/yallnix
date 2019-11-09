@@ -1,5 +1,6 @@
 #include <hardware.h>
 #include <yalnix.h>
+#include <string.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "./KernelCalls.h"
 #include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
@@ -9,7 +10,7 @@
 int KernelTtyWrite(int tty_id, void *buf, int len) {
     // copy buf into R0 so we don't lose it on context switch
     void *r0Buf = (void *) malloc(len);
-    memmmove(r0Buf, buf, len);
+    memmove(r0Buf, buf, len);
 
     if (!isTtyTransmitAvailable(tty_id)) {
         blockTransmitter(tty_id);
