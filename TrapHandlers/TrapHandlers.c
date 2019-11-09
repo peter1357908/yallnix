@@ -73,7 +73,8 @@ void handleTrapClock(UserContext *uctxt) {
 }
 
 void handleTrapIllegal(UserContext *uctxt) {
-    // do this
+    TracePrintf(1, "handleTrapIllegal() called, currPCB->pid = %d\n", currPCB->pid);
+	if (exitProcess(ERROR) == ERROR) Halt();
 }
 
 void handleTrapMemory(UserContext *uctxt) {
@@ -107,7 +108,8 @@ void handleTrapMemory(UserContext *uctxt) {
 }
 
 void handleTrapMath(UserContext *uctxt) {
-    // printf(stderr, "Arithmetic error");
+    TracePrintf(1, "handleTrapMath() called, currPCB->pid = %d\n", currPCB->pid);
+	if (exitProcess(ERROR) == ERROR) Halt();
 }
 
 void handleTtyReceive(UserContext *uctxt) {
@@ -125,10 +127,11 @@ void handleTtyTransmit(UserContext *uctxt) {
 }
 
 void handleTrapDisk(UserContext *uctxt) {
-    // throw Error;
+    TracePrintf(1, "handleTrapDisk() called, currPCB->pid = %d. Halting...\n", currPCB->pid);
+	Halt();
 }
 
 void handleNothing(UserContext *uctxt) {
-	TracePrintf(1, "\nhanldNothing() was invoked...\n");
-    // throw Error;
+    TracePrintf(1, "handleTrapDisk() called, currPCB->pid = %d. Halting...\n", currPCB->pid);
+	Halt();
 }

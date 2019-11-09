@@ -22,7 +22,7 @@ void main() {
 	pid = Fork();
 
 	if (0 == pid) {
-		// NOTE: execTest doesn't use args, we'll want to test this later
+		// TODO: pass in the child exit status to test argument passing
 		TracePrintf(1, "child is calling Exec()...\n");
 		char *argvec[] = {"execTest", NULL};
 		Exec("execTest", argvec);
