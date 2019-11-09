@@ -1,4 +1,4 @@
-// see manual page 44
+// see manual page 34 and 44
 
 #include <hardware.h>
 #include <yalnix.h>
@@ -79,7 +79,7 @@ void handleTrapIllegal(UserContext *uctxt) {
 void handleTrapMemory(UserContext *uctxt) {
 	TracePrintf(1, "handleTrapMemory() called, currPCB->pid = %d\n", currPCB->pid);
     void *addr = uctxt->addr;
-    void *sp = uctxt->sp; 
+	TracePrintf(1, "Offending address is %x\n", addr);
 	int targetPageNumber = (int) addr>>PAGESHIFT;
     int breakPageNumber = (int) (currPCB->brk)>>PAGESHIFT;
 

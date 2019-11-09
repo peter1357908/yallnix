@@ -1,7 +1,7 @@
 #include <yalnix.h>
 #include <stdio.h>
 
-#define DELAY_LENGTH 3
+#define DELAY_LENGTH 2
 #define CHILD_EXIT_STATUS 20
 #define PARENT_EXIT_STATUS 21
 #define MALLOC_BYTES 100
@@ -23,9 +23,12 @@ void main() {
 
 	if (0 == pid) {
 		// NOTE: execTest doesn't use args, we'll want to test this later
-		// TracePrintf(1, "\nchild is calling Exec()...\n");
-		// Exec("execTest", NULL); 
-		TracePrintf(1, "child exiting with status code = %d...\n", CHILD_EXIT_STATUS);
+		TracePrintf(1, "child is calling Exec()...\n");
+		char *argvec[] = {"execTest", NULL};
+		Exec("execTest", argvec);
+		
+		/* ---- NOT REACHED ---- */
+		TracePrintf(1, "In init; somehow the code past exec is getting executed; child exiting with status code = %d...\n", CHILD_EXIT_STATUS);
 		Exit(CHILD_EXIT_STATUS);
 	}
 	else {

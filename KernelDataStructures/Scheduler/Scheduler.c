@@ -17,6 +17,7 @@ q_t *sleepingQ;
 
 KernelContext *switchBetween(KernelContext *, void *, void *);
 KernelContext *forkTo(KernelContext *, void *, void *);
+KernelContext *execTo(KernelContext *, void *, void *);
 void free_zombie_t(void *);
 void delete_process(void *);
 
@@ -211,7 +212,7 @@ int runProcess(int pid) {
 
 int execProcess() {
 	TracePrintf(1, "execProcess() called, currPCB->pid = %d\n",  currPCB->pid);
-	return KernelContextSwitch(switchBetween, NULL, currPCB);
+	return KernelContextSwitch(execTo, NULL, NULL);
 }
 
 
@@ -302,7 +303,7 @@ int unblockProcess(int pid) {
 
 /* -------- scheduler-specific functions -------- */
 
-/* when calling with currPcbP == NULL, assume that the currPCB is deleted already. */
+/* when calling with currPcbP == NULL, assume that the caller is exitProcess(). */
 KernelContext *switchBetween(KernelContext *currKctxt, void *currPcbP, void *nextPcbP) {	
 	if (currPcbP != NULL) {
 		TracePrintf(1, "switchBetween() called, currPcbP->pid = %d, nextPcbP->pid = %d\n", ((PCB_t *) currPcbP)->pid, ((PCB_t *) nextPcbP)->pid);
@@ -391,6 +392,26 @@ KernelContext *forkTo(KernelContext *currKctxt, void *nil0, void *childPcbP) {
     WriteRegister(REG_TLB_FLUSH, TLB_FLUSH_1);
 	
     // return pointer to kctxt of the childPcbP
+    return currPCB->kctxt;
+}
+
+
+/* assumes that the currPCB is the process calling Exec(). Give it the starter kernel
+ * state so it can resume running.
+ */
+KernelContext *execTo(KernelContext *currKctxt, void *nil0, void *nil1) {	
+	TracePrintf(1, "execTo() called, currPCB->pid = %d\n", currPCB->pid);
+	
+    // unlike switchBetween, no need to change kernel stacks
+	
+	// the process must already have its kctxt and kernel stack allocated...
+	memmove(currPCB->kctxt, starterKctxt, sizeof(KernelContext));
+	memmove((void *) KERNEL_STACK_BASE, starterKernelStack, KERNEL_STACK_MAXSIZE);
+	
+    /* no need to change the MMU register for R1 or flushing because
+	 * it was done in LoadProgram() (TOTHINK: is this true, though?)
+	 */
+	
     return currPCB->kctxt;
 }
 
