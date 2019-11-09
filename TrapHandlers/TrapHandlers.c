@@ -1,5 +1,3 @@
-// see manual page 44
-
 #include <hardware.h>
 #include <yalnix.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
@@ -7,6 +5,7 @@
 #include "../Kernel.h"
 #include "TrapHandlers.h"
 #include "../KernelCalls/KernelCalls.h"
+#include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
 
 void handleTrapKernel(UserContext *uctxt) {
     // use the code stored in uctxt to call the corresponding syscall functions.
@@ -32,10 +31,12 @@ void handleTrapKernel(UserContext *uctxt) {
         case YALNIX_DELAY:
             (uctxt->regs)[0] = (u_long) KernelDelay((int)(uctxt->regs)[0]);
             break;
-        // case YALNIX_TTY_READ:
-        //     KernelTtyRead();
-        // case YALNIX_TTY_WRITE:
-        //     KernelTtyWrite();
+        case YALNIX_TTY_READ:
+            KernelTtyRead((int)(uctxt->regs)[0], (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+            break;
+        case YALNIX_TTY_WRITE:
+            KernelTtyWrite((int)(uctxt->regs)[0], (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+            break; 
 
         // #ifdef LINUX
         // case YALNIX_LOCK_INIT:
@@ -111,17 +112,16 @@ void handleTrapMath(UserContext *uctxt) {
 }
 
 void handleTtyReceive(UserContext *uctxt) {
-    // tty_id = uctxt->code
-    // int lenOfInput = TtyReceive(tty_id, tty_idBuf, len)
-    // (if lenOfInput > MAX_TERMINAL_LENGHT, we need to handle the input in batches)
+    int tty_id = uctxt->code;
+    void *buf = (void *) malloc(TERMINAL_MAX_LINE);
+    int actualLen = TtyReceive(tty_id, buf, TERMINAL_MAX_LINE);
+    writeBuffer(tty_id, buf, actualLen);
+    free(buf);
 }
 
 void handleTtyTransmit(UserContext *uctxt) {
-    // tty_id = uctxt->code
-    // acquire lock corresponding to tty_id
-    // tty_idCanTransfer = True
-    // Kernel_CvarSignal(cvar_tty_id)
-    // release lock
+    int tty_id = uctxt->code;
+    signalTransmitter(tty_id);
 }
 
 void handleTrapDisk(UserContext *uctxt) {

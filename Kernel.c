@@ -5,6 +5,7 @@
 #include "KernelDataStructures/PageTable/PageTable.h"
 #include "KernelDataStructures/FrameList/FrameList.h"
 #include "KernelDataStructures/Scheduler/Scheduler.h"
+#include "KernelDataStructures/TtyBuffer/TtyBuffer.h"
 #include "LoadProgram.h"
 #include "Kernel.h"
 
@@ -93,7 +94,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	r0StackBasePtep = r0PageTable + KERNEL_STACK_BASE_VPN - KERNEL_BASE_VPN;
 	tempPtep = r0StackBasePtep - 1;
 	tempVAddr =  (void *) (KERNEL_STACK_BASE - PAGESIZE);
-	
+
+	// initialize ttyBuffers below tempPtep
+	initBuffers(tempPtep - 1);
 	
 	/* initialization logic: "init" requires special initialization because
 	 * its kernel stack is the same as the current kernel stack, and its

@@ -53,7 +53,6 @@ KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void 
 // return ERROR/0; initializes the scheduler (initializes the queues and the nextPid)
 int initScheduler(void);
 
-
 /* return ERROR/0; enqueue some process in sleepingQ and setting their 
  * numRemainingDelayTicks. Do kickProcess(). Do nothing if input integer is non-positive.
  */
@@ -111,5 +110,39 @@ int blockProcess(void);
  */
 int unblockProcess(int pid);
 
+/*
+    =========== TTY STUFF ===========
+*/
+
+/*  return 1 if no other process is currently transmitting to tty_id
+    else return 0
+*/
+int isTtyTransmitAvailable(int tty_id);
+
+/*  return ERROR/0; blocks current process by placing it in tty_id's transmittingQ.
+    Then, runs another ready process.
+*/
+int blockTransmitter(int tty_id);
+
+//  return ERROR/0; pops process from tty_id's transmitting queue and moves it to readyQ.
+int unblockTransmitter(int tty_id);
+
+/*  return ERROR/0; blocks process that is currently transmitting to tty_id 
+    by placing it in currTransmitters[tty_id]
+*/
+int waitTransmitter(int tty_id);
+
+// return ERROR/0; pops process from currTransmitters[tty_id] & runs it
+int signalTransmitter(int tty_id);
+
+/*  return ERROR/0; blocks current process by placing it in tty_id's readingQ.
+    associates the process with readingLen, the number of bytes it's trying to read
+*/
+int blockReader(int tty_id, int readingLen);
+
+/*  return ERROR/0; peeks at readingQ head & sees if there are enough bytes 
+    for the head reader. If so, pops it & moves it to readyQ. Otherwise, does nothing.
+*/
+int unblockReader(int tty_id, int bytesInBuffer);
 
 #endif /*_Scheduler_h*/

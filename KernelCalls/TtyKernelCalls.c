@@ -1,17 +1,38 @@
+#include <hardware.h>
+#include <yalnix.h>
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include "./KernelCalls.h"
+#include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
 
+#define min(a, b) (a < b ? a : b) 
 
-// TERMINAL_MAX_LINE
-int Kernel_TtyWrite(int tty_id, void *buf, int len) {
-    // acquire tty_id's corresponding lock
-    // copy buf in chunks of length < TERMINAL_MAX_LINE to Kernel's memory
-    // for each chunk:
-        // while (!tty_idCanTransfer):
-            // Kernel_CvarWait(cvar_tty_id)
-        // TtyTransmit(tty_id, buf_chunk_copy, len_of_chunk);
-        // tty_idCanTransfer = false
-    // release lock
+int KernelTtyWrite(int tty_id, void *buf, int len) {
+    // copy buf into R0 so we don't lose it on context switch
+    void *r0Buf = (void *) malloc(len);
+    memmmove(r0Buf, buf, len);
+
+    if (!isTtyTransmitAvailable(tty_id)) {
+        blockTransmitter(tty_id);
+    }
+
+    void *batchStartAddress = r0Buf;
+    int batchSize;
+    int bytesTransmitted = 0;
+    while (bytesTransmitted < len) {
+        batchSize = min(TERMINAL_MAX_LINE, len - bytesTransmitted);
+        
+        TtyTransmit(tty_id, batchStartAddress, batchSize);
+        waitTransmitter(tty_id);
+
+        batchStartAddress += batchSize;
+        bytesTransmitted += batchSize;
+    }
+
+    // unblocks processes waiting to transmit to the same tty (if they exist)
+    unblockTransmitter(tty_id);
+    return len;
 }
 
-int Kernel_TtyRead(int tty_id, void *buf, int len){
-    // read from the buffer of the corresponding tty_idBuf
+int KernelTtyRead(int tty_id, void *buf, int len){  
+    readBuffer(tty_id, buf, len);
 }

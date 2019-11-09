@@ -15,10 +15,10 @@ void main() {
 	TracePrintf(1, "init calling Delay(%d)...\n", DELAY_LENGTH);
 	Delay(DELAY_LENGTH);
 
-	TracePrintf(1, "malloc'ing %d bytes to trigger Brk()...\n", MALLOC_BYTES);
-	malloc(MALLOC_BYTES);
+	TracePrintf(1, "malloc'ing a bunch to call Brk()...\n");
+	malloc(100);
 
-	TracePrintf(1, "init calling Fork()...\n");
+	TracePrintf(1, "forking process...\n");
 	pid = Fork();
 
 	if (0 == pid) {

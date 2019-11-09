@@ -22,7 +22,18 @@ void delete_process(void *);
 
 PCB_t *remove_process_q(q_t *, int);
 int tick_down_sleepers_q(void);
+q_t *sleepingQ; 
+int tick_down_sleepers_q();
+PCB_t *remove_process_q(q_t *queue, int pid);
 
+q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
+PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
+q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
+
+typedef struct blockedReader {
+	PCB_t *pcb;
+	int readingLen;
+} blockedReader_t;
 
 /* ------ the following are for initialization ------ */
 
@@ -126,7 +137,6 @@ int initScheduler() {
 	return 0;
 }
 
-
 int sleepProcess(int numRemainingDelayTicks) {
 	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d, ticks = %d\n", currPCB->pid, numRemainingDelayTicks);
 	
@@ -173,7 +183,6 @@ int kickProcess() {
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
-
 int runProcess(int pid) {
 	TracePrintf(1, "runProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
 	
@@ -207,7 +216,6 @@ int runProcess(int pid) {
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
-
 
 int execProcess() {
 	TracePrintf(1, "execProcess() called, currPCB->pid = %d\n",  currPCB->pid);
@@ -297,6 +305,88 @@ int unblockProcess(int pid) {
 	}
 	
 	return 0;
+}
+
+
+/*
+    =========== TTY STUFF ===========
+*/
+
+int isTtyTransmitAvailable(int tty_id) {
+	if (currTransmitters[tty_id] == NULL) return 1;
+	return 0;
+}
+
+int blockTransmitter(int tty_id) {
+	q_t *transmittingQ = transmittingQs[tty_id];
+
+	if (enq_q(transmittingQ, currPCB) == ERROR) return ERROR;
+
+	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
+	
+	if (nextPCB == NULL) return ERROR;
+	
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
+}
+
+int unblockTransmitter(int tty_id) {
+	q_t *transmittingQ = transmittingQs[tty_id];
+
+	PCB_t *nextPCB = (PCB_t *) deq_q(transmittingQ);
+
+	// only move to readyQ if there is a blocked transmitter
+	if (nextPCB != NULL) {
+		if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+	}
+
+	return SUCCESS;
+}
+
+int waitTransmitter(int tty_id) {
+	currTransmitters[tty_id] = currPCB;
+
+	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
+	
+	if (nextPCB == NULL) return ERROR;
+	
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
+}
+
+int signalTransmitter(int tty_id) {
+	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+
+	PCB_t *nextPCB = currTransmitters[tty_id];
+
+	if (nextPCB == NULL) return ERROR;
+	
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
+}
+
+int blockReader(int tty_id, int readingLen) {
+	blockedReader_t *reader = (blockedReader_t *) malloc(sizeof(blockedReader_t));
+	reader->pcb = currPCB;
+	reader->readingLen = readingLen;
+	
+	q_t *readingQ = readingQs[tty_id];
+	if (enq_q(readingQ, reader) == ERROR) return ERROR;
+
+	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
+	if (nextPCB == NULL) return ERROR;
+	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
+}
+
+int unblockReader(int tty_id, int bytesInBuffer) {
+	q_t *readingQ = readingQs[tty_id];
+	blockedReader_t *reader = peek_q(readingQ);
+
+	// if no blocked reader OR not enough bytes in buffer for reader, do nothing
+	if (reader == NULL || reader->readingLen < bytesInBuffer) return SUCCESS;
+
+	// otherwise, remove from Q & move PCB to readyQ
+	deq_q(readingQ);
+	if (enq_q(readyQ, reader->pcb) == ERROR) return ERROR;
+
+	return SUCCESS;
 }
 
 
@@ -567,4 +657,3 @@ int tick_down_sleepers_q() {
 	
 	return 0;
 }
-
