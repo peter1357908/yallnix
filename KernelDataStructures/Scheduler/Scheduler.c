@@ -23,12 +23,9 @@ void delete_process(void *);
 
 PCB_t *remove_process_q(q_t *, int);
 int tick_down_sleepers_q(void);
-q_t *sleepingQ; 
-int tick_down_sleepers_q();
-PCB_t *remove_process_q(q_t *queue, int pid);
 
-q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
 PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
+q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
 q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 
 typedef struct blockedReader {
@@ -135,6 +132,15 @@ int initScheduler() {
 		(sleepingQ = make_q()) == NULL) {
 		return ERROR;
 	}
+	
+	int i;
+	for (i = 0; i < NUM_TERMINALS; i++) {
+		if ((transmittingQs[i] = make_q()) == NULL || \
+			(readingQs[i] = make_q()) == NULL) {
+			return ERROR;
+		}
+	}
+	
 	return 0;
 }
 
@@ -256,11 +262,11 @@ int exitProcess(int exit_status) {
 		}
 		
 		// now it must have a zombieQ, enqueue the current process...
-		zombie_t *zombiePcbp = (zombie_t *) malloc(sizeof(zombie_t));
-		zombiePcbp->pid = currPCB->pid;
-		zombiePcbp->exit_status = exit_status;
+		zombie_t *childZombiep = (zombie_t *) malloc(sizeof(zombie_t));
+		childZombiep->pid = currPCB->pid;
+		childZombiep->exit_status = exit_status;
 		
-		if (enq_q(parentPcbp->zombieQ, zombiePcbp) == ERROR) return ERROR;
+		if (enq_q(parentPcbp->zombieQ, childZombiep) == ERROR) return ERROR;
 		
 		unblockProcess(parentPcbp->pid);
 	}
@@ -290,9 +296,7 @@ int blockProcess(void) {
 int unblockProcess(int pid) {
 	TracePrintf(1, "unblockProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
 	// first test if the queue is NULL (fatal error)
-	if (blockedQ == NULL) {
-		return ERROR;
-	}
+	if (blockedQ == NULL) return ERROR;
 	
 	PCB_t *unblockedPCB = remove_process_q(blockedQ, pid);
 	
@@ -319,6 +323,7 @@ int isTtyTransmitAvailable(int tty_id) {
 }
 
 int blockTransmitter(int tty_id) {
+	TracePrintf(1, "blockTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
 	q_t *transmittingQ = transmittingQs[tty_id];
 
 	if (enq_q(transmittingQ, currPCB) == ERROR) return ERROR;
@@ -331,19 +336,30 @@ int blockTransmitter(int tty_id) {
 }
 
 int unblockTransmitter(int tty_id) {
+	TracePrintf(1, "unblockTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
 	q_t *transmittingQ = transmittingQs[tty_id];
+	
+	// first test if the queue is NULL (fatal error)
+	if (transmittingQ == NULL) return ERROR;
 
-	PCB_t *nextPCB = (PCB_t *) deq_q(transmittingQ);
+	PCB_t *unblockedPCB = (PCB_t *) deq_q(transmittingQ);
 
 	// only move to readyQ if there is a blocked transmitter
-	if (nextPCB != NULL) {
-		if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+	if (unblockedPCB != NULL) {
+		if (enq_q(readyQ, unblockedPCB) == ERROR) return ERROR;
 	}
 
 	return SUCCESS;
 }
 
 int waitTransmitter(int tty_id) {
+	TracePrintf(1, "waitTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
+	
+	if (isTtyTransmitAvailable(tty_id) == 0) {
+		TracePrintf(1, "returning with ERROR because target tty is not available\n",  currPCB->pid, tty_id);
+		return ERROR;
+	}
+	
 	currTransmitters[tty_id] = currPCB;
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
@@ -354,9 +370,13 @@ int waitTransmitter(int tty_id) {
 }
 
 int signalTransmitter(int tty_id) {
+	TracePrintf(1, "signalTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
 
 	PCB_t *nextPCB = currTransmitters[tty_id];
+	
+	// make the tty available again.
+	currTransmitters[tty_id] = NULL;
 
 	if (nextPCB == NULL) return ERROR;
 	
@@ -372,20 +392,29 @@ int blockReader(int tty_id, int readingLen) {
 	if (enq_q(readingQ, reader) == ERROR) return ERROR;
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
+	
 	if (nextPCB == NULL) return ERROR;
+	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
 int unblockReader(int tty_id, int bytesInBuffer) {
 	q_t *readingQ = readingQs[tty_id];
+	
+	// first test if the queue is NULL (fatal error)
+	if (readingQ == NULL) return ERROR;
+	
 	blockedReader_t *reader = peek_q(readingQ);
 
 	// if no blocked reader OR not enough bytes in buffer for reader, do nothing
 	if (reader == NULL || reader->readingLen < bytesInBuffer) return SUCCESS;
 
 	// otherwise, remove from Q & move PCB to readyQ
-	deq_q(readingQ);
-	if (enq_q(readyQ, reader->pcb) == ERROR) return ERROR;
+	PCB_t *readerPCB = reader->pcb;
+	deq_q(readingQ); // The dequeued item should be `reader` and is freed next
+	free(reader);
+	
+	if (enq_q(readyQ, readerPCB) == ERROR) return ERROR;
 
 	return SUCCESS;
 }
@@ -507,8 +536,8 @@ KernelContext *execTo(KernelContext *currKctxt, void *nil0, void *nil1) {
 
 
 // only used in delete_process()
-void free_zombie_t(void *zombiePcbp_item) {
-	free(zombiePcbp_item);
+void free_zombie_t(void *zombiep_item) {
+	free(zombiep_item);
 }
 
 

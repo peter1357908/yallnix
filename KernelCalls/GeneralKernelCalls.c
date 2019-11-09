@@ -104,11 +104,19 @@ int KernelWait(int *status_ptr) {
 		}
 	}
     // ** process is now running & zombieQueue has children ** 
-    zombie_t *childPcbp = deq_q(currPCB->zombieQ);
-	if (childPcbp == NULL) return ERROR;
+    zombie_t *childZombiep = deq_q(currPCB->zombieQ);
+	if (childZombiep == NULL) {
+		TracePrintf(1, "KernelWait() is returning with ERROR because currPCB (pid = %d) should be a parent unblocked from Wait(), but dequeuing its zombieQ somehow returned NULL\n", currPCB->pid);
+		return ERROR;
+	}
 	
-    *status_ptr = childPcbp->exit_status;
-    return childPcbp->pid;
+    *status_ptr = childZombiep->exit_status;
+    
+	int childPid = childZombiep->pid;
+	
+	free(childZombiep);
+	
+	return childPid;
 }
 
 int KernelGetPid() {

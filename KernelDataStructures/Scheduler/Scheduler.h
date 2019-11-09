@@ -132,7 +132,9 @@ int unblockTransmitter(int tty_id);
 */
 int waitTransmitter(int tty_id);
 
-// return ERROR/0; pops process from currTransmitters[tty_id] & runs it
+/*  return ERROR/0; kicks the current process into readyQ,
+    removes process from currTransmitters[tty_id], and runs that process
+*/
 int signalTransmitter(int tty_id);
 
 /*  return ERROR/0; blocks current process by placing it in tty_id's readingQ.

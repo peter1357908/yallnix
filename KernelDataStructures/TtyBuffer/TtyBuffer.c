@@ -15,13 +15,15 @@ int bufferSize = PAGESIZE / NUM_TERMINALS;
 
 int initBuffers(void *base) {
     void *bufBase = base;
+	ttyBuf_t *ttyBuf;
     int i;
     for (i = 0; i < NUM_TERMINALS; i++) {
-        ttyBuf_t *ttyBuf = (ttyBuf_t *) malloc(sizeof(ttyBuf_t));
+        ttyBuf = (ttyBuf_t *) malloc(sizeof(ttyBuf_t));
         if (ttyBuf == NULL) return ERROR;
         
         ttyBuf->base = bufBase;
         ttyBuf->numBytesWritten = 0;
+		
         buffers[i] = ttyBuf;
         bufBase += bufferSize;
     }

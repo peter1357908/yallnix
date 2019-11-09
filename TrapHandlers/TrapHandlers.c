@@ -88,8 +88,8 @@ void handleTrapMemory(UserContext *uctxt) {
 
     // we leave 'REDZONE' of 1 page
     if (targetPageNumber <= breakPageNumber + 1) {
-        // TODO: kill process
-        return;
+		// if we can't, then abort the current process
+        if (exitProcess(ERROR) == ERROR) Halt();
     }
 
     struct pte *currPageTable = currPCB->r1PageTable;
@@ -99,8 +99,7 @@ void handleTrapMemory(UserContext *uctxt) {
     while (((int) currAddr>>PAGESHIFT) >= targetPageNumber) {
         if (currPte->valid == 0) {
             if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-                // TODO: kill process;
-                return;
+                if (exitProcess(ERROR) == ERROR) Halt();
             }
             setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), pfn);
         }
