@@ -82,7 +82,7 @@ int KernelExec(char *filename, char **argvec) {
 }
     
 void KernelExit(int status) {
-	TracePrintf(1, "KernelExit() called, currPCB->pid = %d\n",  currPCB->pid);
+	TracePrintf(1, "KernelExit() called, currPCB->pid = %d, status = %d\n",  currPCB->pid, status);
 	// TOTHINK: can we just check the PCB pointers?
 	// TODO: wrap Halt() with free functions
 	if (currPCB->pid == initPid) {
