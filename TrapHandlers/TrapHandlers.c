@@ -9,59 +9,79 @@
 #include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
 
 void handleTrapKernel(UserContext *uctxt) {
+	// return_code defaults to ERROR
+	int return_code = ERROR;
+	
     // use the code stored in uctxt to call the corresponding syscall functions.
     switch(uctxt->code) {
         case YALNIX_FORK:
-            (uctxt->regs)[0] = (u_long) KernelFork();
+            return_code = KernelFork();
             break;
         case YALNIX_EXEC:
-            (uctxt->regs)[0] = (u_long) KernelExec((char *)(uctxt->regs)[0], (char **)(uctxt->regs)[1]);
+            return_code = KernelExec((char *)(uctxt->regs)[0], (char **)(uctxt->regs)[1]);
             break;
         case YALNIX_EXIT:
             KernelExit((int)(uctxt->regs)[0]);
+			return_code = 0;
             break;
         case YALNIX_WAIT:
-            (uctxt->regs)[0] = (u_long) KernelWait((int *)(uctxt->regs)[0]);
+            return_code = KernelWait((int *)(uctxt->regs)[0]);
             break;
         case YALNIX_GETPID:
-            (uctxt->regs)[0] = (u_long) KernelGetPid();
+            return_code = KernelGetPid();
             break;
         case YALNIX_BRK:
-            (uctxt->regs)[0] = (u_long) KernelBrk((void *)(uctxt->regs)[0]);
+            return_code = KernelBrk((void *)(uctxt->regs)[0]);
             break;
         case YALNIX_DELAY:
-            (uctxt->regs)[0] = (u_long) KernelDelay((int)(uctxt->regs)[0]);
+            return_code = KernelDelay((int)(uctxt->regs)[0]);
             break;
         case YALNIX_TTY_READ:
-            KernelTtyRead((int)(uctxt->regs)[0], (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+            return_code = KernelTtyRead((int)(uctxt->regs)[0], \
+			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
             break;
         case YALNIX_TTY_WRITE:
-            KernelTtyWrite((int)(uctxt->regs)[0], (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+             return_code = KernelTtyWrite((int)(uctxt->regs)[0], \
+			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
             break; 
 
         // #ifdef LINUX
         // case YALNIX_LOCK_INIT:
-        //     KernelLockInit();
+            // return_code = KernelLockInit((int *)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_LOCK_ACQUIRE:   
-        //     KernelLockAcquire();
+            // return_code = KernelAcquire((int)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_LOCK_RELEASE:
-        //     KernelLockRelease();
+            // return_code = KernelRelease((int)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_CVAR_INIT:
-        //     KernelCvarInit();
+            // return_code = KernelCvarInit((int *)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_CVAR_SIGNAL:
-        //     KernelCvarSignal();
+            // return_code = KernelCvarSignal((int)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_CVAR_BROADCAST:
-        //     KernelCvarBroadcast();
+            // return_code = KernelCvarBroadcast((int)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_CVAR_WAIT:
-        //     kernelCvarWait();
+            // return_code = kernelCvarWait((int)(uctxt->regs)[0], (int)(uctxt->regs)[1]);
+			// break;
         // case YALNIX_PIPE_INIT:
-        //     KernelPipeInit();
+            // return_code = KernelPipeInit((int *)(uctxt->regs)[0]);
+			// break;
         // case YALNIX_PIPE_READ:
-        //     KernelPipeRead();
+            // return_code = KernelPipeRead((int)(uctxt->regs)[0], \
+			// (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+			// break;
         // case YALNIX_PIPE_WRITE: 
-        //     KernelPipeWrite();
+            // return_code = KernelPipeWrite((int)(uctxt->regs)[0], \
+			// (void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
+			// break;
         // #endif
     }
+	
+	(uctxt->regs)[0] = (u_long) return_code;
 }
 
 void handleTrapClock(UserContext *uctxt) {
