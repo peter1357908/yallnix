@@ -124,7 +124,9 @@ int isTtyTransmitAvailable(int tty_id);
 */
 int blockTransmitter(int tty_id);
 
-//  return ERROR/0; pops process from tty_id's transmitting queue and moves it to readyQ.
+/*  return ERROR/0; makes the target tty available again, then pops process from 
+	tty_id's transmitting queue and moves it to readyQ.
+*/
 int unblockTransmitter(int tty_id);
 
 /*  return ERROR/0; blocks process that is currently transmitting to tty_id 
@@ -138,13 +140,12 @@ int waitTransmitter(int tty_id);
 int signalTransmitter(int tty_id);
 
 /*  return ERROR/0; blocks current process by placing it in tty_id's readingQ.
-    associates the process with readingLen, the number of bytes it's trying to read
 */
-int blockReader(int tty_id, int readingLen);
+int blockReader(int tty_id);
 
-/*  return ERROR/0; peeks at readingQ head & sees if there are enough bytes 
-    for the head reader. If so, pops it & moves it to readyQ. Otherwise, does nothing.
+/*  return ERROR/0; if there is someone in the tty_id's readingQ, move it to
+	the readyQ instead.
 */
-int unblockReader(int tty_id, int bytesInBuffer);
+int unblockReader(int tty_id);
 
 #endif /*_Scheduler_h*/

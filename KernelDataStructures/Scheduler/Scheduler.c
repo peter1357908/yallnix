@@ -28,11 +28,6 @@ PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
 q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
 q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 
-typedef struct blockedReader {
-	PCB_t *pcb;
-	int readingLen;
-} blockedReader_t;
-
 /* ------ the following are for initialization ------ */
 
 int initProcess(PCB_t **pcb) {
@@ -306,10 +301,10 @@ int unblockProcess(int pid) {
 	 * the parent only waited for one).
 	 */
 	if (unblockedPCB != NULL) {
-		if (enq_q(readyQ, unblockedPCB) == ERROR) return ERROR;
+		return enq_q(readyQ, unblockedPCB);
 	}
 	
-	return 0;
+	return SUCCESS;
 }
 
 
@@ -337,6 +332,10 @@ int blockTransmitter(int tty_id) {
 
 int unblockTransmitter(int tty_id) {
 	TracePrintf(1, "unblockTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
+	
+	// make the tty available again.
+	currTransmitters[tty_id] = NULL;
+	
 	q_t *transmittingQ = transmittingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
@@ -346,7 +345,7 @@ int unblockTransmitter(int tty_id) {
 
 	// only move to readyQ if there is a blocked transmitter
 	if (unblockedPCB != NULL) {
-		if (enq_q(readyQ, unblockedPCB) == ERROR) return ERROR;
+		return enq_q(readyQ, unblockedPCB);
 	}
 
 	return SUCCESS;
@@ -354,11 +353,6 @@ int unblockTransmitter(int tty_id) {
 
 int waitTransmitter(int tty_id) {
 	TracePrintf(1, "waitTransmitter() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
-	
-	if (isTtyTransmitAvailable(tty_id) == 0) {
-		TracePrintf(1, "returning with ERROR because target tty is not available\n",  currPCB->pid, tty_id);
-		return ERROR;
-	}
 	
 	currTransmitters[tty_id] = currPCB;
 
@@ -375,21 +369,16 @@ int signalTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = currTransmitters[tty_id];
 	
-	// make the tty available again.
-	currTransmitters[tty_id] = NULL;
-
 	if (nextPCB == NULL) return ERROR;
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
-int blockReader(int tty_id, int readingLen) {
-	blockedReader_t *reader = (blockedReader_t *) malloc(sizeof(blockedReader_t));
-	reader->pcb = currPCB;
-	reader->readingLen = readingLen;
-	
+int blockReader(int tty_id) {
+	TracePrintf(1, "blockReader() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
 	q_t *readingQ = readingQs[tty_id];
-	if (enq_q(readingQ, reader) == ERROR) return ERROR;
+	
+	if (enq_q(readingQ, currPCB) == ERROR) return ERROR;
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
@@ -398,23 +387,19 @@ int blockReader(int tty_id, int readingLen) {
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
-int unblockReader(int tty_id, int bytesInBuffer) {
+int unblockReader(int tty_id) {
+	TracePrintf(1, "unblockReader() called, currPCB->pid = %d, tty_id = %d\n",  currPCB->pid, tty_id);
 	q_t *readingQ = readingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
 	if (readingQ == NULL) return ERROR;
-	
-	blockedReader_t *reader = peek_q(readingQ);
 
-	// if no blocked reader OR not enough bytes in buffer for reader, do nothing
-	if (reader == NULL || reader->readingLen < bytesInBuffer) return SUCCESS;
+	PCB_t *unblockedPCB = (PCB_t *) deq_q(readingQ);
 
-	// otherwise, remove from Q & move PCB to readyQ
-	PCB_t *readerPCB = reader->pcb;
-	deq_q(readingQ); // The dequeued item should be `reader` and is freed next
-	free(reader);
-	
-	if (enq_q(readyQ, readerPCB) == ERROR) return ERROR;
+	// only move to readyQ if there is a blocked reader
+	if (unblockedPCB != NULL) {
+		 return enq_q(readyQ, unblockedPCB);
+	}
 
 	return SUCCESS;
 }
@@ -642,7 +627,7 @@ int tick_down_sleepers_q() {
 	
 	PCB_t *pcbp = (PCB_t *) (currNode->item);
 	(pcbp->numRemainingDelayTicks)--;
-	TracePrintf(1, "Sleeper whose pid = %d ticked down to %d\n", pcbp->pid, pcbp->numRemainingDelayTicks);
+	TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
 	
 	// keep removing heads; if no ticks remain, move the current pcbp to readyQ
 	while (pcbp->numRemainingDelayTicks <= 0) {

@@ -136,10 +136,6 @@ test: all
 	
 gdb: all
 	gdb --args $(YALNIX_OUTPUT) $(TEST_FLAGS)
-	
-# test the context switching part only... given that execTest is a simple loop
-ctxt: all
-	$(YALNIX_OUTPUT) $(TEST_FLAGS) execTest
 
 no-core:
 	rm -f core.*

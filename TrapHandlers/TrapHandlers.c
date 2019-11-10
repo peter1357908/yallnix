@@ -135,15 +135,12 @@ void handleTrapMath(UserContext *uctxt) {
 
 void handleTtyReceive(UserContext *uctxt) {
     int tty_id = uctxt->code;
-    void *buf = (void *) malloc(TERMINAL_MAX_LINE);
-    int actualLen = TtyReceive(tty_id, buf, TERMINAL_MAX_LINE);
-    writeBuffer(tty_id, buf, actualLen);
-    free(buf);
+    if (writeBuffer(tty_id) == ERROR) Halt();
 }
 
 void handleTtyTransmit(UserContext *uctxt) {
     int tty_id = uctxt->code;
-    signalTransmitter(tty_id);
+    if (signalTransmitter(tty_id) == ERROR) Halt();
 }
 
 void handleTrapDisk(UserContext *uctxt) {

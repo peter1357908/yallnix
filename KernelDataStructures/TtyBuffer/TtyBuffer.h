@@ -4,15 +4,19 @@
 // returns ERROR/SUCCESS; initializes tty buffers at address "base"
 int initBuffers(void *base);
 
-/*  returns ERROR/SUCCESS; copies [len] bytes from buf to tty_id's buffer
-    unblocks waiting readers if enough bytes have been written
+/*  returns ERROR/SUCCESS; store the ready-to-be-read line in our own buffer;
+    only wakes a reader up if the line read is not just an EOF (i.e. wakes a
+	reader up if received a blank line, which is not an EOF).
+	
+	Currently overwrites any remaining un-read bytes.
 */
-int writeBuffer(int tty_id, void *buf, int len);
+int writeBuffer(int tty_id);
 
-/*  returns ERROR/SUCCESS; copies [len] bytes from tty_id's buffer to buf.
-    blocks reader if not enough bytes are available.
-    if after reading, there are still bytes in buffer, those bytes are copied
-    to the start of the buffer.
+/*  returns ERROR/number of bytes written; copies at most [len] bytes from 
+    tty_id's buffer to buf. If after reading, there are still bytes in the
+	buffer, those bytes are copied to the beginning of the buffer.
+	
+	Assumes that the given len is positive (this is ensured by KernelTtyRead())
 */
 int readBuffer(int tty_id, void *buf, int len);
 

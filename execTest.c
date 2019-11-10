@@ -1,8 +1,8 @@
 #include <yalnix.h>
 
 #define ITERATIONS 2
-#define DELAY_LENGTH 2
-#define EXIT_STATUS 30
+#define DELAY_LENGTH 3
+#define EXIT_STATUS 50
 
 void main() {
 	int i;
