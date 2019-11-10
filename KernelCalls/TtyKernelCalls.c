@@ -10,7 +10,7 @@
 int KernelTtyWrite(int tty_id, void *buf, int len) {
 	TracePrintf(1, "KernelTtyWrite() called; tty_id = %d, buf = %x, len = %d\n", tty_id, buf, len);
 	
-	if (len <= 0) {
+	if (len < 0) {
 		TracePrintf(1, "the given len is negative, returning with ERROR\n");
 		return ERROR;
 	}
@@ -59,7 +59,7 @@ int KernelTtyWrite(int tty_id, void *buf, int len) {
 int KernelTtyRead(int tty_id, void *buf, int len) {
 	TracePrintf(1, "KernelTtyRead() called; tty_id = %d, buf = %x, len = %d\n", tty_id, buf, len);
 	
-	if (len <= 0) {
+	if (len < 0) {
 		TracePrintf(1, "the given len is negative, returning with ERROR\n");
 		return ERROR;
 	}
