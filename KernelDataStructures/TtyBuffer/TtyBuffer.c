@@ -5,7 +5,8 @@
 #include <string.h>
 #include "../../Kernel.h"
 
-#define TTY_READ_BUFFER_SIZE (PAGESIZE / NUM_TERMINALS)
+#define TOTAL_READ_BUFFER_PAGES 1
+#define TTY_READ_BUFFER_SIZE (TOTAL_READ_BUFFER_PAGES * PAGESIZE / NUM_TERMINALS)
 
 typedef struct ttyBuf {
     void *base;
@@ -15,28 +16,43 @@ typedef struct ttyBuf {
 
 ttyBuf_t *buffers[NUM_TERMINALS];
 
-int initBuffers(void *base) {
-    void *bufBase = base;
+int initBuffers() {
+	// make that many pages available
+	void *totalBufferBase = tempVAddr - TOTAL_READ_BUFFER_PAGES * PAGESIZE;
+	struct pte *totalBufferBasePtep = tempPtep - TOTAL_READ_BUFFER_PAGES;
+	
+	int pageCount;
+	u_long pfn;
+	for (pageCount = 0; pageCount < TOTAL_READ_BUFFER_PAGES; pageCount++) {
+		if (getFrame(FrameList, numFrames, &pfn) == ERROR) Halt();
+		
+		setPageTableEntry(totalBufferBasePtep, 1, (PROT_READ|PROT_WRITE), pfn);
+		
+		totalBufferBasePtep++;
+	}
+	
+    void *currBufferBase = totalBufferBase;
 	ttyBuf_t *ttyBuf;
     int i;
     for (i = 0; i < NUM_TERMINALS; i++) {
         ttyBuf = (ttyBuf_t *) malloc(sizeof(ttyBuf_t));
         if (ttyBuf == NULL) return ERROR;
         
-        ttyBuf->base = bufBase;
+        ttyBuf->base = currBufferBase;
         ttyBuf->numBytesWritten = 0;
 		ttyBuf->isLineReady = 0;
 		
         buffers[i] = ttyBuf;
-        bufBase += TTY_READ_BUFFER_SIZE;
+        currBufferBase += TTY_READ_BUFFER_SIZE;
     }
+	
     return SUCCESS;
 }
 
-int writeBuffer(int tty_id) {	
-    ttyBuf_t *ttyBuf = buffers[tty_id];
-	
+int writeBuffer(int tty_id) {
+	ttyBuf_t *ttyBuf = buffers[tty_id];
 	int lenWithNull = TtyReceive(tty_id, ttyBuf->base, TERMINAL_MAX_LINE);
+	TracePrintf(1, "in writeBuffer(); tty_id = %d, lenWithNull = %d\n", tty_id, lenWithNull);
 	
 	/* per page 33, NULL is not copied into the buffer. lenWithNull will be
 	 * 1 if a blank line is returned, and 0 for an EOF. Only wake a reader
@@ -57,17 +73,20 @@ int writeBuffer(int tty_id) {
 
 int readBuffer(int tty_id, void *buf, int len) {    
     ttyBuf_t *ttyBuf = buffers[tty_id];
+	TracePrintf(1, "in readBuffer(); tty_id = %d, buf = %x, len = %d\n", tty_id, buf, len);
 
 	// block the reader if there is no line to be read yet
 	// TOTHINK: is "if" sufficient?
     while (ttyBuf->isLineReady == 0) {
+		TracePrintf(1, "target tty (id = %d) not ready, process (pid = %d) blocked\n", tty_id, currPCB->pid);
         if (blockReader(tty_id) == ERROR) return ERROR;
     }
 	
 	/* now the reader can read something; read as much as possible -
 	 * either the length wanted, or the available length
 	 */
-	 
+	
+	TracePrintf(1, "target tty (id = %d) is now ready, process (pid = %d) now resuming in readBuffer()\n", tty_id, currPCB->pid);
 	if (len < ttyBuf->numBytesWritten) {
 		memmove(buf, ttyBuf->base, len);
 		
@@ -78,7 +97,7 @@ int readBuffer(int tty_id, void *buf, int len) {
 		ttyBuf->numBytesWritten = numRemainingBytes;
 		
 		// attempts to unblock a reader because some bytes remain
-		unblockReader(tty_id);
+		if (unblockReader(tty_id) == ERROR) return ERROR;
 		
 		return len;
 	}

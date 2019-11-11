@@ -1,8 +1,9 @@
 #ifndef _TtyBuffer_h
 #define _TtyBuffer_h
 
-// returns ERROR/SUCCESS; initializes tty buffers at address "base"
-int initBuffers(void *base);
+/* returns ERROR/SUCCESS; initializes tty buffers
+ */
+int initBuffers(void);
 
 /*  returns ERROR/SUCCESS; store the ready-to-be-read line in our own buffer;
     only wakes a reader up if the line read is not just an EOF (i.e. wakes a
