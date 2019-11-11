@@ -46,7 +46,7 @@ void main() {
 				
 				num_read = TtyRead(i, buffer, READ_SIZE);
 				
-				buffer[num_read] = '\n';
+				buffer[num_read] = '\0';
 				
 				TtyPrintf(i, "TtyRead said I read %d bytes, and I read the following:\n%s\n", num_read, buffer);
 			}
