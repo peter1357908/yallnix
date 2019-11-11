@@ -41,7 +41,7 @@ void handleTrapKernel(UserContext *uctxt) {
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
             break;
         case YALNIX_TTY_WRITE:
-             return_code = KernelTtyWrite((int)(uctxt->regs)[0], \
+            return_code = KernelTtyWrite((int)(uctxt->regs)[0], \
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
             break; 
 
