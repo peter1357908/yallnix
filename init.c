@@ -3,8 +3,9 @@
 #include <stdio.h>
 
 #define DELAY_LENGTH 2
-#define PARENT_DELAY_LENGTH 15
+#define PARENT_DELAY_LENGTH 1
 #define PARENT_EXIT_STATUS 20
+#define CHILD_DELAY_LENGTH 1
 #define CHILD_EXIT_STATUS 30
 #define GRANDCHILD_EXIT_STATUS 40
 #define MALLOC_SIZE 1024
@@ -25,12 +26,47 @@ void main() {
 	TtyPrintf(0, "free'ing the %d bytes just allocated... \n", MALLOC_SIZE);
 	free(allocated_memory);
 
+	TtyPrintf(0, "init initializing lock...\n");
+	int lock_id;
+	LockInit(&lock_id);
+	TtyPrintf(0, "lock id = %d...\n", lock_id);
+
+	TtyPrintf(0, "init initializing cvar...\n");
+	int cvar_id;
+	CvarInit(&cvar_id);
+	TtyPrintf(0, "cvar id = %d...\n", cvar_id);
+
 	TtyPrintf(0, "init calling Fork()...\n");
 	pid = Fork();
 	
 	int status;
 	if (0 == pid) {
 		pid = GetPid();
+
+		TtyPrintf(0, "child (pid = %d) is trying to acquire lock %d...\n", pid, lock_id);
+		Acquire(lock_id);
+		TtyPrintf(0, "child (pid = %d) has acquired lock %d...\n", pid, lock_id);
+
+		TtyPrintf(0, "child (pid = %d) calling Delay(%d) after acquiring lock.\n", pid, CHILD_DELAY_LENGTH);
+		Delay(CHILD_DELAY_LENGTH);
+
+		// NOTE: because these are processes and not threads, we cannot share data between them
+		// The condition will have to involve pipes once those are finished
+		int condition = 0;
+		while (condition == 0) {
+			TtyPrintf(0, "condiiton == %d, so child (pid = %d) calling CvarWait(%d, %d)...\n", condition, pid, cvar_id, lock_id);
+			CvarWait(cvar_id, lock_id);
+
+			// imagine the following is being done by another process
+			// but we can't do this yet, cause we don't have pipes
+			condition++;
+		}
+
+		TtyPrintf(0, "condition != 0, so child (pid = %d) is proceeding...\n", pid);
+
+		TtyPrintf(0, "child (pid = %d) is releasing lock %d...\n", pid, lock_id);
+		Release(lock_id);
+
 		TtyPrintf(0, "child (pid = %d) is calling Fork()...\n", pid);
 		pid = Fork();
 		
@@ -72,8 +108,19 @@ void main() {
 		}
 	}
 	else {
-		TtyPrintf(0, "parent calling Delay(%d) after forking.\n", PARENT_DELAY_LENGTH);
+		TtyPrintf(0, "parent is trying to acquire lock %d...\n", lock_id);
+		Acquire(lock_id);
+		TtyPrintf(0, "parent has acquired lock %d...\n", lock_id);
+
+		TtyPrintf(0, "parent calling Delay(%d) after forking & acquiring lock.\n", PARENT_DELAY_LENGTH);
 		Delay(PARENT_DELAY_LENGTH);
+
+		TtyPrintf(0, "parent is releasing lock %d...\n", lock_id);
+		Release(lock_id);
+
+		TtyPrintf(0, "parent signaling cvar %d...\n", cvar_id);
+		CvarSignal(cvar_id);
+
 		TtyPrintf(0, "parent calling Wait()\n");
 		Wait(&status);
 		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);

@@ -6,6 +6,8 @@
 #include "KernelDataStructures/FrameList/FrameList.h"
 #include "KernelDataStructures/Scheduler/Scheduler.h"
 #include "KernelDataStructures/TtyBuffer/TtyBuffer.h"
+#include "KernelDataStructures/Lock/Lock.h"
+#include "KernelDataStructures/Cvar/Cvar.h"
 #include "LoadProgram.h"
 #include "Kernel.h"
 
@@ -97,6 +99,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 	// initialize ttyBuffers
 	initBuffers();
+
+	// initialize Lock Map
+	initLockMap();
+
+	// initialize Cvar Map
+	initCvarMap();
 	
 	/* initialization logic: "init" requires special initialization because
 	 * its kernel stack is the same as the current kernel stack, and its

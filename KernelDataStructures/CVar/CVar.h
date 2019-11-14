@@ -14,6 +14,10 @@ typedef struct cvar {
     int lock_id;
 } cvar_t;
 
+/* initialize CvarMap
+*/
+void initCvarMap(void );
+
 /*  returns ERROR/SUCCESS; intializes cvar and saves
     cvar_id to cvar_idp
 */
@@ -32,6 +36,6 @@ int pushCvarQ(int cvar_id, int lock_id, int pid);
 /*  return ERROR/SUCCESS pops a process (by pid & lock_id) from
     the cvar queue & assigns to cvarP
 */
-int popCvarQ(int cvar_id, cvar_t *cvarP);
+int popCvarQ(int cvar_id, cvar_t **cvarP);
 
 #endif /* _CVar_h */

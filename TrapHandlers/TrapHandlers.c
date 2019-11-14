@@ -45,28 +45,28 @@ void handleTrapKernel(UserContext *uctxt) {
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
             break; 
 
-        // #ifdef LINUX
-        // case YALNIX_LOCK_INIT:
-        //     return_code = KernelLockInit((int *)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_LOCK_ACQUIRE:   
-        //     return_code = KernelAcquire((int)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_LOCK_RELEASE:
-        //     return_code = KernelRelease((int)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_CVAR_INIT:
-        //     return_code = KernelCvarInit((int *)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_CVAR_SIGNAL:
-        //     return_code = KernelCvarSignal((int)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_CVAR_BROADCAST:
-        //     return_code = KernelCvarBroadcast((int)(uctxt->regs)[0]);
-		// 	break;
-        // case YALNIX_CVAR_WAIT:
-        //     return_code = kernelCvarWait((int)(uctxt->regs)[0], (int)(uctxt->regs)[1]);
-		// 	break;
+        #ifdef LINUX
+        case YALNIX_LOCK_INIT:
+            return_code = KernelLockInit((int *)(uctxt->regs)[0]);
+			break;
+        case YALNIX_LOCK_ACQUIRE:   
+            return_code = KernelAcquire((int)(uctxt->regs)[0]);
+			break;
+        case YALNIX_LOCK_RELEASE:
+            return_code = KernelRelease((int)(uctxt->regs)[0]);
+			break;
+        case YALNIX_CVAR_INIT:
+            return_code = KernelCvarInit((int *)(uctxt->regs)[0]);
+			break;
+        case YALNIX_CVAR_SIGNAL:
+            return_code = KernelCvarSignal((int)(uctxt->regs)[0]);
+			break;
+        case YALNIX_CVAR_BROADCAST:
+            return_code = KernelCvarBroadcast((int)(uctxt->regs)[0]);
+			break;
+        case YALNIX_CVAR_WAIT:
+            return_code = KernelCvarWait((int)(uctxt->regs)[0], (int)(uctxt->regs)[1]);
+			break;
         // case YALNIX_PIPE_INIT:
         //     return_code = KernelPipeInit((int *)(uctxt->regs)[0]);
 		// 	break;
@@ -78,7 +78,7 @@ void handleTrapKernel(UserContext *uctxt) {
         //     return_code = KernelPipeWrite((int)(uctxt->regs)[0], \
 		// 	(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
 		// 	break;
-        // #endif
+        #endif
     }
 	
 	(uctxt->regs)[0] = (u_long) return_code;

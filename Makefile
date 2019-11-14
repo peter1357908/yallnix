@@ -26,6 +26,8 @@ PAGE_TABLE = $(KERNEL_DATA_STRUCTURES_DIR)/PageTable/PageTable
 FRAME_LIST = $(KERNEL_DATA_STRUCTURES_DIR)/FrameList/FrameList
 SCHEDULER = $(KERNEL_DATA_STRUCTURES_DIR)/Scheduler/Scheduler
 TTY_BUFFER = $(KERNEL_DATA_STRUCTURES_DIR)/TtyBuffer/TtyBuffer
+LOCK = $(KERNEL_DATA_STRUCTURES_DIR)/Lock/Lock
+CVAR = $(KERNEL_DATA_STRUCTURES_DIR)/CVar/CVar
 
 GENERAL_DATA_STRUCTURES_DIR = GeneralDataStructures
 QUEUE = $(GENERAL_DATA_STRUCTURES_DIR)/Queue/Queue
@@ -38,18 +40,19 @@ KERNEL_CALLS_DIR = KernelCalls
 KERNEL_CALLS_HEADER = $(KERNEL_CALLS_DIR)/KernelCalls.h
 GENERAL_KERNEL_CALLS = $(KERNEL_CALLS_DIR)/GeneralKernelCalls
 TTY_KERNEL_CALLS = $(KERNEL_CALLS_DIR)/TtyKernelCalls
-
+CVAR_KERNEL_CALLS = $(KERNEL_CALLS_DIR)/CVarKernelCalls
+LOCK_KERNEL_CALLS = $(KERNEL_CALLS_DIR)/LockKernelCalls
 
 TRAP_HANDLERS = TrapHandlers/TrapHandlers
 LOAD_PROGRAM = LoadProgram
 
 
 #List all kernel source files here.  
-KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(FRAME_LIST).c $(SCHEDULER).c $(TTY_BUFFER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c $(GENERAL_KERNEL_CALLS).c $(TTY_KERNEL_CALLS).c	
+KERNEL_SRCS = Kernel.c $(PAGE_TABLE).c $(LOCK).c $(CVAR).c $(FRAME_LIST).c $(SCHEDULER).c $(TTY_BUFFER).c $(QUEUE).c $(HASH_MAP).c $(SET_DS).c $(TRAP_HANDLERS).c $(LOAD_PROGRAM).c $(GENERAL_KERNEL_CALLS).c $(TTY_KERNEL_CALLS).c	$(CVAR_KERNEL_CALLS).c $(LOCK_KERNEL_CALLS).c	
 #List the objects to be formed form the kernel source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(TTY_BUFFER).o $(QUEUE).o $(HASH_MAP).o $(SET_DS).o $(TRAP_HANDLERS).o $(LOAD_PROGRAM).o $(GENERAL_KERNEL_CALLS).o $(TTY_KERNEL_CALLS).o
+KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(LOCK).o $(CVAR).o $(FRAME_LIST).o $(SCHEDULER).o $(TTY_BUFFER).o $(QUEUE).o $(HASH_MAP).o $(SET_DS).o $(TRAP_HANDLERS).o $(LOAD_PROGRAM).o $(GENERAL_KERNEL_CALLS).o $(TTY_KERNEL_CALLS).o $(CVAR_KERNEL_CALLS).o $(LOCK_KERNEL_CALLS).c
 #List all of the header files necessary for your kernel
-KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(TTY_BUFFER).h  $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h $(KERNEL_CALLS_HEADER)
+KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(LOCK).h $(CVAR).h $(FRAME_LIST).h $(SCHEDULER).h $(TTY_BUFFER).h  $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h $(KERNEL_CALLS_HEADER)
 
 
 #List all user programs here.
