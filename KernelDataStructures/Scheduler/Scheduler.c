@@ -28,6 +28,8 @@ PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
 q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
 q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 
+
+
 /* ------ the following are for initialization ------ */
 
 int initProcess(PCB_t **pcb) {

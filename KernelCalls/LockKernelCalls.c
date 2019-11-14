@@ -1,24 +1,37 @@
+#include "../KernelDataStructures/Lock/Lock.h"
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include "../../GeneralDataStructures/Queue/Queue.h"
+#include "../../Kernel.h"
+#include <hardware.h>
+#include <yalnix.h>
+
 int Kernel_LockInit(int *lock_idp) {
-    // creates a lock in LockMap
-    // assigns lock_id to lock_idp
-    // increment lockCount
-    // return 0 if no error
-    // else return ERROR
+    return initLock(lock_idp);
 }
 
 int Kernel_Acquire(int lock_id) {
-    // lock = LockMap[lock_id]
-    // throw error if lock_id doesn't exist
-    // while lock.isLocked:
-        // move process from running to blocked
+    // while lock isn't free, push lock onto lockQ & block it
+    while (isLockFree(lock_id) == 0) {
+        if (pushLockQ(lock_id, currPCB->pid) == ERROR || \
+            blockProcess() == ERROR) return ERROR;
+    }
 
-    // (below has to be atomic -- ask Sean)
-    // set lock->isLocked = True
-    // set lock->ownerPID = currentProcess->pid
+    // set curr process as owner
+    if (setLockOwner(lock_id, currPCB->pid) == ERROR) return ERROR;
+
+    return SUCCESS;
 }
 
-int Kernel_Release(int lock_id) {
-    // lock = LockMap[lock_id]
-    // throw error if lock_id doesn't exist
-    // set lock->isLocked = False
+int Kernel_Release(int lock_id) { 
+    releaseLock(lock_id);
+
+    // if processes in LockQ, pop one & unblock it
+    if (isLockQEmpty(lock_id) == 0) {
+        int pid;
+        if (popLockQ(lock_id, &pid) == ERROR) return ERROR;
+        unblockProcess(pid);
+	}
+
+    return SUCCESS;
 }
+ 

@@ -1,33 +1,33 @@
+#include "../KernelDataStructures/Cvar/Cvar.h"
+#include "../KernelDataStructures/Lock/Lock.h"
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include <yalnix.h>
+#include "../Kernel.h"
+
 int Kernel_CvarInit(int *cvar_idp) {
-    // creates a CVar in the CVar Map
-    // assigns cvar_id to cvar_idp
-    // increment cvarCount
-    // return 0 if no error
-    // else return ERROR
-}
-
-int Kernel_CvarSignal(int cvar_id){
-    // Cvar = CvarMap.getItem(cvar_id)
-    // pid = Cvar.pop() (reminder that Cvar is a queue)
-    // move process PID from blocked to ready
-    // return 0 if no error
-    // else return ERROR
-}
-
-int Kernel_CvarBroadcast(int cvar_id){
-    // while !Cvar.isEmpty():
-        // status = CvarSignal(cvar_id)
-        // if status == ERROR:
-            // return ERROR
-    // return 0
+    return initCvar(cvar_idp);
 }
 
 int Kernel_CvarWait(int cvar_id, int lock_id){
-    // cvar = getCVar(cvar_id)
-    // cvar.addProcess(currentProcess->pid)
-    // move process from running to blocked
+    addProcessToCvarQ(cvar_id, currPCB->pid);
+    if (blockProcess() == ERROR) return ERROR;
+    return SUCCESS;
+}
 
-    // acquire lock again
-    // return 0 if no error
-    // else return ERROR
+int Kernel_CvarSignal(int cvar_id){
+    // pop process from Cvar queue & retrive pid & lock
+    cvar_t *cvar;
+    if (popCvarQ(cvar_id, &cvar) == ERROR) return ERROR;
+    int lock_id = cvar->lock_id;
+    int pid = cvar->pid;
+    pushLockQ(lock_id, pid);
+    return SUCCESS;
+}
+
+int Kernel_CvarBroadcast(int cvar_id){
+    while (isCvarEmpty(cvar_id) == 0) {
+        int signalStatus = CvarSignal(cvar_id);
+        if (signalStatus == ERROR) return ERROR;
+    }
+    return SUCCESS;
 }
