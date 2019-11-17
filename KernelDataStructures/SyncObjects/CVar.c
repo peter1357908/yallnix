@@ -1,8 +1,9 @@
 #include "../../GeneralDataStructures/Queue/Queue.h"
-#include "../../GeneralDataStructures/Hashmap/Hashmap.h"
-#include <yalnix.h>
-#include "../../Kernel.h"
-#include "./Cvar.h"
+#include "../../GeneralDataStructures/HashMap/HashMap.h"
+#include <yalnix.h> // for ERROR definition
+#include "../../Kernel.h" // for SUCCESS definition
+#include "Cvar.h"
+#include "Lock.h"
 
 /* ---------- only visible to Cvar.c ------------ */
 

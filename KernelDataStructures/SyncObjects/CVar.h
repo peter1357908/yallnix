@@ -2,8 +2,6 @@
 #ifndef _CVar_h
 #define _CVar_h
 
-#include "../../GeneralDataStructures/Queue/Queue.h"
-
 typedef struct cvar {
     /*  pid of process waiting on cvar
     */
@@ -16,7 +14,7 @@ typedef struct cvar {
 
 /* initialize CvarMap
 */
-void initCvarMap(void );
+void initCvarMap(void);
 
 /*  returns ERROR/SUCCESS; intializes cvar and saves
     cvar_id to cvar_idp

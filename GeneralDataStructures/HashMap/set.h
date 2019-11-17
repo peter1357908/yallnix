@@ -9,12 +9,14 @@
  *
  * David Kotz, April 2016, 2017
  * updated by Xia Zhou, July 2016
+ *
+ * Modified by Shengsong Gao; now:
+ * Type of Item: arbitrary pointer
+ * Type of Key: integer
  */
 
 #ifndef _set_h
 #define _set_h
-
-#include <stdio.h>
 
 /**************** global types ****************/
 typedef struct set set_t;  // opaque to users of the module
@@ -24,35 +26,23 @@ typedef struct set set_t;  // opaque to users of the module
 /* Create a new (empty) set; return NULL if error. */
 set_t *set_new(void);
 
-/* Insert item, identified by a key (string), into the given set.
- * The key string is copied for use by the set; that is, the module
- * is responsible for allocating memory for a copy of the key string, and
- * later deallocating that memory; thus, the caller is free to re-use or 
- * deallocate its key string after this call.  
- * Return ERROR if malloc failed;
- * return (ERROR-1) if key exists or any parameter is NULL;
+/* Insert item, identified by a key (integer), into the given set.
+ * Return ERROR if malloc failed, the key exists, or any parameter is NULL;
  * return 0 iff new item was inserted.
  */
-int set_insert(set_t *set, const char *key, void *item);
+int set_insert(set_t *set, int key, void *item);
 
 /* Return the item associated with the given key;
- * return NULL if set is NULL, key is NULL, or key is not found.
+ * return NULL if set is NULL or key is not found.
  */
-void *set_find(set_t *set, const char *key);
-
-/* Print the whole set; provide the output file and func to print each item.
- * Ignore if NULL fp. Print (null) if NULL set.
- * Print a set with no items if NULL itemprint. 
-*/
-void set_print(set_t *set, FILE *fp, 
-	       void (*itemprint)(FILE *fp, const char *key, void *item) );
+void *set_find(set_t *set, int key);
 
 /* Iterate over all items in the set, in undefined order.
  * Call the given function on each item, with (arg, key, item).
  * If set==NULL or itemfunc==NULL, do nothing.
  */
 void set_iterate(set_t *set, void *arg,
-		 void (*itemfunc)(void *arg, const char *key, void *item) );
+		 void (*itemfunc)(void *arg, int key, void *item) );
 
 /* Delete the whole set; ignore NULL set.
  * Provide a function that will delete each item (may be NULL).

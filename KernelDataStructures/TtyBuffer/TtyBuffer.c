@@ -17,7 +17,7 @@ typedef struct ttyBuf {
 ttyBuf_t *buffers[NUM_TERMINALS];
 
 int initBuffers() {
-	// make that many pages available
+	// make TOTAL_READ_BUFFER_PAGES many pages available
 	void *totalBufferBase = tempVAddr - TOTAL_READ_BUFFER_PAGES * PAGESIZE;
 	struct pte *totalBufferBasePtep = tempPtep - TOTAL_READ_BUFFER_PAGES;
 	

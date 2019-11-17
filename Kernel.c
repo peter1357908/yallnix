@@ -6,8 +6,9 @@
 #include "KernelDataStructures/FrameList/FrameList.h"
 #include "KernelDataStructures/Scheduler/Scheduler.h"
 #include "KernelDataStructures/TtyBuffer/TtyBuffer.h"
-#include "KernelDataStructures/Lock/Lock.h"
-#include "KernelDataStructures/Cvar/Cvar.h"
+#include "KernelDataStructures/SyncObjects/Lock.h"
+#include "KernelDataStructures/SyncObjects/Cvar.h"
+#include "KernelDataStructures/SyncObjects/Pipe.h"
 #include "LoadProgram.h"
 #include "Kernel.h"
 

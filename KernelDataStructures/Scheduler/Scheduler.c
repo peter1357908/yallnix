@@ -124,6 +124,8 @@ KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void 
 
 int initScheduler() {
 	nextPid = 0;
+	nextSyncId = 0;
+	
 	if ((readyQ = make_q()) == NULL || \
 		(blockedQ = make_q()) == NULL || \
 		(sleepingQ = make_q()) == NULL) {
@@ -545,7 +547,7 @@ void delete_process(void *pcbp_item) {
 	PCB_t *pcbp = (PCB_t *) pcbp_item;
 	free(pcbp->uctxt);
 	free(pcbp->kctxt);
-	free_q(pcbp->zombieQ, free_zombie_t);
+	delete_q(pcbp->zombieQ, free_zombie_t);
 	
 	// free the frames in the r1PageTable, and then the r1PageTable
 	struct pte *ptep = pcbp->r1PageTable;

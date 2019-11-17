@@ -171,6 +171,8 @@ int KernelDelay(int clock_ticks) {
     return 0;
 }
 
+
+// won't reclaim a sync object if it still has a owner and/or some waiters.
 int KernelReclaim(int id) {
     // 
     // for each map (LockMap, CVarMap, PipeMap):

@@ -23,12 +23,14 @@ q_t *make_q() {
 	return queue;
 }
 
-void free_q(q_t *queue, void (*itemdelete)(void *item)) {
+void delete_q(q_t *queue, void (*itemdelete)(void *item)) {
 	if (queue != NULL) {
 		void *item;
 		while(queue->head != NULL) {
 			item = deq_q(queue);  //deq_q() frees the node it deq'd
-			(*itemdelete)(item);
+			if (itemdelete != NULL) {
+				(*itemdelete)(item);
+			}
 		}
 		free(queue);
 	}

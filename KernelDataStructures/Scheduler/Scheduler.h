@@ -31,6 +31,7 @@ PCB_t *currPCB;
 
 int initPid;
 
+int nextSyncId;
 
 /* --------- the following are for initialization --------- */
 

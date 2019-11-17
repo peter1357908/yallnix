@@ -18,8 +18,8 @@ typedef struct queue {
 // returns NULL if malloc failed
 q_t *make_q();
 
-
-void free_q(q_t *queue, void (*itemdelete)(void *item));
+// allows NULL as the itemdelete()
+void delete_q(q_t *queue, void (*itemdelete)(void *item));
 
 
 // returns ERROR if the queue is NULL or malloc failed; otherwise 0.

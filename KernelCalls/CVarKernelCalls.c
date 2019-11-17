@@ -1,5 +1,5 @@
-#include "../KernelDataStructures/Cvar/Cvar.h"
-#include "../KernelDataStructures/Lock/Lock.h"
+#include "../KernelDataStructures/SyncObjects/Cvar.h"
+#include "../KernelDataStructures/SyncObjects/Lock.h"
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include <yalnix.h>
 #include "../Kernel.h"

@@ -54,11 +54,11 @@ void main() {
 		// The condition will have to involve pipes once those are finished
 		int condition = 0;
 		while (condition == 0) {
-			TtyPrintf(0, "condiiton == %d, so child (pid = %d) calling CvarWait(%d, %d)...\n", condition, pid, cvar_id, lock_id);
+			TtyPrintf(0, "condition == %d, so child (pid = %d) calling CvarWait(%d, %d)...\n", condition, pid, cvar_id, lock_id);
 			CvarWait(cvar_id, lock_id);
 
 			// imagine the following is being done by another process
-			// but we can't do this yet, cause we don't have pipes
+			// but we can't do this yet, because we don't have pipes
 			condition++;
 		}
 

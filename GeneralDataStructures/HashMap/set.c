@@ -13,7 +13,7 @@
 
 /**************** local types ****************/
 typedef struct setnode {
-	char *key;
+	int key;
 	void *item;
 	struct setnode *next;
 } setnode_t;
@@ -36,15 +36,15 @@ set_new(void)
 
 /**************** set_insert() ****************/
 int
-set_insert(set_t *set, const char *key, void *item)
+set_insert(set_t *set, int key, void *item)
 {
-	if (set != NULL && key != NULL && item != NULL) {
+	if (set != NULL && item != NULL) {
 		// iterate through the list to see if the key already exists
-		// can't rely on set_find(), because it returns NULL when a key with item NULL exists
+		// basically set_find():
 		setnode_t *node;
 		for (node = set->head; node != NULL; node = node->next) {
-			if (strcmp(node->key, key) == 0) {
-				return ERROR-1;
+			if (node->key == key) {
+				return ERROR;
 			}
 		}
 		
@@ -56,10 +56,7 @@ set_insert(set_t *set, const char *key, void *item)
 			return ERROR;
 		} else {
 			// the key doesn't exist, and node is allocated - fill it up.
-			// first allocate space equal to length + 1 to account for null-terminator
-			// then make own copy of key with strcpy, and add it to the head of the list
-			node->key = calloc(strlen(key) + 1, sizeof(char));
-			strcpy(node->key, key);
+			node->key = key;
 			node->item = item;
 			
 			node->next = set->head;
@@ -69,13 +66,13 @@ set_insert(set_t *set, const char *key, void *item)
 		}
 	}
 
-	// return ERROR-1 if any of the parameter is NULL
-	return ERROR-1;
+	// return ERROR if any of the parameter is NULL
+	return ERROR;
 }
 
 /**************** set_find() ****************/
 void *
-set_find(set_t *set, const char *key)
+set_find(set_t *set, int key)
 {
 	if (set == NULL) {
 		return NULL; // bad set
@@ -86,7 +83,7 @@ set_find(set_t *set, const char *key)
 		setnode_t *node;
 		for (node = set->head; node != NULL; node = node->next) {
 			// if key matched, return the item
-			if (strcmp(node->key, key) == 0) {
+			if (node->key == key) {
 				return node->item;
 			}
 		}
@@ -95,32 +92,9 @@ set_find(set_t *set, const char *key)
 	}
 }
 
-/**************** set_print() ****************/
-void
-set_print(set_t *set, FILE *fp, void (*itemprint)(FILE *fp, const char *key, void *item) )
-{
-	if (fp != NULL && itemprint != NULL) {
-		if (set != NULL) {
-			fputc('{', fp);
-			// if itemprint is NULL, only prints "{}"
-			if (itemprint != NULL) {
-				setnode_t *node;
-				for (node = set->head; node != NULL; node = node->next) {
-					// print this node 
-					(*itemprint)(fp, node->key, node->item); 
-					fputc(',', fp);
-				}
-			}
-			fputc('}', fp);
-		} else {
-			fputs("(null)", fp);
-		}
-	}
-}
-
 /**************** set_iterate() ****************/
 void
-set_iterate(set_t *set, void *arg, void (*itemfunc)(void *arg, const char *key, void *item) )
+set_iterate(set_t *set, void *arg, void (*itemfunc)(void *arg, int key, void *item) )
 {
 	if (set != NULL && itemfunc != NULL) {
 		// call itemfunc with arg, on each item
@@ -138,7 +112,6 @@ set_delete(set_t *set, void (*itemdelete)(void *item) )
 	if (set != NULL) {
 		setnode_t *node;
 		for (node = set->head; node != NULL; ) {
-			free(node->key);
 			if (itemdelete != NULL) {		    // if possible...
 				(*itemdelete)(node->item);	    // delete node's item
 			}
