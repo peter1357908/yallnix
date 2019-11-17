@@ -30,4 +30,3 @@ int initLock(int *lock_idp);
 lock_t *getLock(int lock_id);
 
 #endif /* _Lock_h */
-

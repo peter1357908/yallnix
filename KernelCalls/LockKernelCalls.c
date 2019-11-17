@@ -22,13 +22,14 @@ int KernelAcquire(int lock_id) {
 	 */
     // TOTHINK: might get away with an "if" here
     while (lockp->ownerPcbp != NULL) {
+		// dequeuing happens during Release()
         if (enq_q(lockp->waitingQ, currPCB) == ERROR || \
 			blockProcess() == ERROR) {
 			return ERROR;
 		}
     }
-
-    // set curr process as owner
+	
+	/* --- woke up and running; set curr process as owner --- */
     lockp->ownerPcbp = currPCB;
 	
     return SUCCESS;
@@ -51,11 +52,9 @@ int KernelRelease(int lock_id) {
 	lockp->ownerPcbp = NULL;
 
     // if there are waiters, unblock one and lift its waiting status
-    if (peek_q(lockp->waitingQ) != NULL) {
-        PCB_t *waiterPcbp = deq_q(lockp->waitingQ);
-        unblockProcess(waiterPcbp->pid);
-	}
-
-    return SUCCESS;
+	PCB_t *waiterPcbp = deq_q(lockp->waitingQ);
+	
+    if (waiterPcbp == NULL) return SUCCESS;  // no waiter, return SUCCESS
+	
+    return unblockProcess(waiterPcbp->pid);
 }
- 

@@ -11,20 +11,19 @@ void initLockMap() {
 }
 
 int initLock(int *lock_idp) {
-    lock_t *lock;
+    lock_t *lockp = (lock_t *) malloc(sizeof(lock_t));
 	
 	// return ERROR if malloc'ing for the lock or the waitingQ fails
-    if ((lock = (lock_t *) malloc(sizeof(lock_t))) == NULL || \
-		((lock->waitingQ = make_q())) == NULL ) {
+    if (lockp == NULL || ((lockp->waitingQ = make_q())) == NULL ) {
 		return ERROR;
 	}
-    lock->ownerPcbp = NULL;
+    lockp->ownerPcbp = NULL;
 
     // get an ID for the lock and increment the sync object count
     *lock_idp = nextSyncId++;
 
     // store lock in LockMap
-    return HashMap_insert(lockMap, *lock_idp, lock);
+    return HashMap_insert(lockMap, *lock_idp, lockp);
 }
 
 lock_t *getLock(int lock_id) {
