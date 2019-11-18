@@ -11,9 +11,33 @@
 #define MALLOC_SIZE 1024
 #define PIPE_READ_SIZE 20
 #define TTY_READ_SIZE 10
-#define EXEC_FILENAME "execTest"
+#define EXEC_TEST "./test/exectest"
+#define FORK_TEST "./test/forktest"
+#define TORTURE_TEST "./test/torture"
+#define ZERO_TEST "./test/zero"
+#define BIGSTACK_TEST "./test/bigstack"
+
 
 void main() {
+
+	// UNCOMMENT TO RUN TEST FILE
+
+	// TtyPrintf(0, "init running %s", FORK_TEST);
+	// char *forkArgs[] = {FORK_TEST, NULL};
+	// Exec(FORK_TEST, forkArgs);
+
+	// TtyPrintf(0, "init running %s", ZERO_TEST);
+	// char *zeroArgs[] = {ZERO_TEST, NULL};
+	// Exec(ZERO_TEST, zeroArgs);
+
+	// TtyPrintf(0, "init running %s", BIGSTACK_TEST);
+	// char *bigstackArgs[] = {BIGSTACK_TEST, NULL};
+	// Exec(BIGSTACK_TEST, bigstackArgs);
+
+	// TtyPrintf(0, "init running %s", TORTURE_TEST);
+	// char *tortureArgs[] = {TORTURE_TEST, NULL};
+	// Exec(TORTURE_TEST, tortureArgs);
+
 	TtyPrintf(0, "init calling GetPid()...\n");
 	int pid = GetPid();
 	TtyPrintf(0, "init's pid: %d\n", pid);
@@ -114,8 +138,8 @@ void main() {
 			TtyPrintf(0, "grandchild (pid = %d) status = %d\n", grandchildPid, status);
 			
 			TtyPrintf(0, "child (pid = %d) is calling Exec()...\n", pid);
-			char *argvec[] = {EXEC_FILENAME, NULL};
-			Exec(EXEC_FILENAME, argvec);
+			char *argvec[] = {EXEC_TEST, NULL};
+			Exec(EXEC_TEST, argvec);
 			
 			/* ---- NOT REACHED ---- */
 			TtyPrintf(0, "In init; somehow the code past exec is getting executed; child (pid = %d) exiting with status code = %d...\n", pid, CHILD_EXIT_STATUS);

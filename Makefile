@@ -57,13 +57,14 @@ KERNEL_OBJS = Kernel.o $(PAGE_TABLE).o $(FRAME_LIST).o $(SCHEDULER).o $(TTY_BUFF
 #List all of the header files necessary for your kernel
 KERNEL_INCS = Kernel.h $(PAGE_TABLE).h $(FRAME_LIST).h $(SCHEDULER).h $(TTY_BUFFER).h $(LOCK).h $(CVAR).h $(PIPE).h $(QUEUE).h $(HASH_MAP).h $(SET_DS).h $(TRAP_HANDLERS).h $(LOAD_PROGRAM).h $(KERNEL_CALLS_HEADER)
 
+TEST_DIR = test
 
 #List all user programs here.
-USER_APPS = init execTest
+USER_APPS = init $(TEST_DIR)/exectest $(TEST_DIR)/forktest $(TEST_DIR)/bigstack $(TEST_DIR)/torture $(TEST_DIR)/zero
 #List all user program source files here.  SHould be the same as the previous list, with ".c" added to each file
-USER_SRCS = init.c execTest.c
+USER_SRCS = init.c $(TEST_DIR)/exectest.c $(TEST_DIR)/forktest.c $(TEST_DIR)/bigstack.c $(TEST_DIR)/torture.c $(TEST_DIR)/zero.c
 #List the objects to be formed form the user  source files here.  Should be the same as the prvious list, replacing ".c" with ".o"
-USER_OBJS = init.o execTest.o
+USER_OBJS = init.o $(TEST_DIR)/exectest.o $(TEST_DIR)/forktest.o $(TEST_DIR)/bigstack.o $(TEST_DIR)/torture.o $(TEST_DIR)/zero.o
 #List all of the header files necessary for your user programs
 USER_INCS = 
 

@@ -4,6 +4,7 @@
 #include <hardware.h>  // TracePrintf
 #include <yalnix.h>  // ERROR
 #include <string.h>  // memmove
+#include "../Kernel.h" // SUCCESS
 
 
 int KernelPipeInit(int *pipe_idp){
@@ -19,7 +20,7 @@ int KernelPipeRead(int pipe_id, void *buf, int len){
 	}
 	if (len == 0) {
 		TracePrintf(1, "the given len is 0, returning with 0\n");
-		return 0;
+		return SUCCESS;
 	}
 	
 	pipe_t *pipep = getPipe(pipe_id);
@@ -91,7 +92,7 @@ int KernelPipeWrite(int pipe_id, void *buf, int len){
 	}
 	if (len == 0) {
 		TracePrintf(1, "the given len is 0, returning with 0\n");
-		return 0;
+		return SUCCESS;
 	}
 	
 	pipe_t *pipep = getPipe(pipe_id);

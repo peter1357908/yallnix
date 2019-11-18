@@ -4,6 +4,7 @@
 #include <hardware.h>
 #include <yalnix.h>
 #include <string.h>
+#include "../Kernel.h"
 
 #define min(a, b) (a < b ? a : b) 
 
@@ -16,7 +17,7 @@ int KernelTtyWrite(int tty_id, void *buf, int len) {
 	}
 	if (len == 0) {
 		TracePrintf(1, "the given len is 0, returning with 0\n");
-		return 0;
+		return SUCCESS;
 	}
 	
     // copy buf into R0 so we don't lose it on context switch, see page 32
@@ -65,7 +66,7 @@ int KernelTtyRead(int tty_id, void *buf, int len) {
 	}
 	if (len == 0) {
 		TracePrintf(1, "the given len is 0, returning with 0\n");
-		return 0;
+		return SUCCESS;
 	}
 	
     return readBuffer(tty_id, buf, len);

@@ -99,7 +99,7 @@ void handleTrapClock(UserContext *uctxt) {
 
 void handleTrapIllegal(UserContext *uctxt) {
     TracePrintf(1, "handleTrapIllegal() called, currPCB->pid = %d\n", currPCB->pid);
-	if (exitProcess(ERROR) == ERROR) Halt();
+    KernelExit(ERROR);
 }
 
 void handleTrapMemory(UserContext *uctxt) {
@@ -112,7 +112,7 @@ void handleTrapMemory(UserContext *uctxt) {
     // we leave 'REDZONE' of 1 page
     if (targetPageNumber <= breakPageNumber + 1) {
 		// if we can't, then abort the current process
-        if (exitProcess(ERROR) == ERROR) Halt();
+        KernelExit(ERROR);
     }
 
     struct pte *currPageTable = currPCB->r1PageTable;
@@ -122,7 +122,7 @@ void handleTrapMemory(UserContext *uctxt) {
     while (((int) currAddr>>PAGESHIFT) >= targetPageNumber) {
         if (currPte->valid == 0) {
             if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
-                if (exitProcess(ERROR) == ERROR) Halt();
+                KernelExit(ERROR);
             }
             setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), pfn);
         }
@@ -133,7 +133,7 @@ void handleTrapMemory(UserContext *uctxt) {
 
 void handleTrapMath(UserContext *uctxt) {
     TracePrintf(1, "handleTrapMath() called, currPCB->pid = %d\n", currPCB->pid);
-	if (exitProcess(ERROR) == ERROR) Halt();
+    KernelExit(ERROR);
 }
 
 void handleTtyReceive(UserContext *uctxt) {

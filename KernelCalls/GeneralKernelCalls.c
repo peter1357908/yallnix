@@ -68,7 +68,7 @@ int KernelFork(void) {
         return childPCB->pid;
     }
     else if (currPCB->pid == childPCB->pid)  {
-        return 0;
+        return SUCCESS;
     }
     else {
         return ERROR;
@@ -81,7 +81,7 @@ int KernelExec(char *filename, char **argvec) {
 		return ERROR;
 	}
 	
-	return 0;
+	return SUCCESS;
 }
     
 void KernelExit(int status) {
@@ -160,7 +160,7 @@ int KernelBrk(void *addr) {
     }
 	
     currPCB->brk = addr;
-    return 0;
+    return SUCCESS;
 }
 
 int KernelDelay(int clock_ticks) {
@@ -171,7 +171,7 @@ int KernelDelay(int clock_ticks) {
 		}
 	}
     // scheduler should grab another ready process & context switch into it
-    return 0;
+    return SUCCESS;
 }
 
 

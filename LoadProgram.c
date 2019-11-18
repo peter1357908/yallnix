@@ -349,5 +349,5 @@ int LoadIdle(PCB_t *idlePCB) {
 	idlePCB->uctxt->ebp = cp2;
 #endif
 	
-	return 0;
+	return SUCCESS;
 }

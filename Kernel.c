@@ -210,5 +210,5 @@ int SetKernelBrk(void *addr) {
 	}
 
 	currKernelBrk = addr;
-	return 0;
+	return SUCCESS;
 }
