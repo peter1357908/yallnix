@@ -101,11 +101,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	// initialize ttyBuffers
 	initBuffers();
 
-	// initialize Lock Map
+	// initialize lockMap
 	initLockMap();
 
-	// initialize Cvar Map
+	// initialize cvarMap
 	initCvarMap();
+	
+	// initialize pipeMap
+	initPipeMap();
 	
 	/* initialization logic: "init" requires special initialization because
 	 * its kernel stack is the same as the current kernel stack, and its
