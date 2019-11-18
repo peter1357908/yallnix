@@ -616,7 +616,9 @@ PCB_t *remove_process_q(q_t *queue, int pid) {
 		currNode = node_behind;
 		node_behind = node_behind->node_behind;
 	}
-
+	
+	// no PCB found matching the pid, return NULL
+	return NULL;
 }
 
 

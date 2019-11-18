@@ -35,8 +35,14 @@ void *HashMap_find(HashMap_t *hm, int key);
 void HashMap_iterate(HashMap_t *hm, void *arg,
 		       void (*itemfunc)(void *arg, int key, void *item) );
 
-/* Delete the whole HashMap; ignore NULL hm.
- * Provide a function that will delete each item (may be NULL).
+/* Removes and returns a specific item from the HashMap based on 
+ * the key, if it exists; returns NULL for NULL hm or if fails
+ * to find the corresponding item.
+ */
+void *HashMap_remove(HashMap_t *hm, int key);
+
+/* Deletes the whole HashMap; ignores NULL hm.
+ * Takes in a function for deleting each item (may be NULL).
  */
 void HashMap_delete(HashMap_t *hm, void (*itemdelete)(void *item) );
 

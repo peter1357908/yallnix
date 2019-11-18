@@ -2,6 +2,7 @@
 #include "../../GeneralDataStructures/HashMap/HashMap.h"
 #include "../Scheduler/Scheduler.h"  // for nextSyncId
 #include <yalnix.h> // for ERROR definition
+#include "../../Kernel.h" // for SUCCESS definition
 #include "Lock.h" // lock_t and lockMap
 
 #define LOCK_MAP_HASH_BUCKETS 50
@@ -28,4 +29,22 @@ int initLock(int *lock_idp) {
 
 lock_t *getLock(int lock_id) {
 	return (lock_t *) HashMap_find(lockMap, lock_id);
+}
+
+int deleteLock(int lock_id) {
+	lock_t *lockp = (lock_t *) HashMap_remove(lockMap, lock_id);
+	
+	// if the lock or its waitingQ is NULL, return ERROR
+	if (lockp == NULL || lockp->waitingQ == NULL) return ERROR;
+	
+	// if it has an owner or some waiters, return ERROR;
+	if (lockp->ownerPcbp != NULL || peek_q(lockp->waitingQ) != NULL) {
+		return ERROR;
+	}
+	
+	// otherwise, the lock is safe to be deleted
+	delete_q(lockp->waitingQ, NULL);
+	free(lockp);
+	
+	return SUCCESS;
 }

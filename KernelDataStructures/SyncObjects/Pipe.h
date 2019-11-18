@@ -35,4 +35,10 @@ int initPipe(int *pipe_idp);
 // find and returns the lock associated with the lock_id (NULL if any error)
 pipe_t *getPipe(int pipe_id);
 
+/* delete an individual pipe from the pipeMap if the pipe has no 
+ * waiters. (the pipe, its buffer, and its waitingQ will be freed).
+ * returns SUCCESS if deletion is successful; otherwise ERROR
+ */
+int deletePipe(int pipe_id);
+
 #endif /* _Pipe_h */

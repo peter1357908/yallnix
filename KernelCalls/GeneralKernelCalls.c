@@ -3,7 +3,10 @@
 #include <string.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../KernelDataStructures/FrameList/FrameList.h"
-#include ".././LoadProgram.h"
+#include "../KernelDataStructures/SyncObjects/Lock.h"
+#include "../KernelDataStructures/SyncObjects/CVar.h"
+#include "../KernelDataStructures/SyncObjects/Pipe.h"
+#include "../LoadProgram.h"
 #include "../Kernel.h"
 
 int KernelFork(void) {
@@ -172,11 +175,15 @@ int KernelDelay(int clock_ticks) {
 }
 
 
-// won't reclaim a sync object if it still has a owner and/or some waiters.
 int KernelReclaim(int id) {
-    // 
-    // for each map (LockMap, CVarMap, PipeMap):
-        // if id in map:
-            // free(id)
-    // return ERROR if error else 0
+	/* since deletion functions return ERROR if the Map does not have the item
+	 * corresponding to the given id, we need to first make sure that
+	 * the Map has the item, before returning with the deletion function
+	 */
+	if (getLock(id) != NULL) return deleteLock(id);
+	if (getCvar(id) != NULL) return deleteCvar(id);
+	if (getPipe(id) != NULL) return deletePipe(id);
+	
+	// the given id does not correspond to any sync object; return ERROR
+	return ERROR;
 }

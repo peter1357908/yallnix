@@ -22,6 +22,21 @@ int initCvar(int *cvar_idp) {
     return HashMap_insert(cvarMap, *cvar_idp, cvarQ);
 }
 
-q_t *getCvarQ(int cvar_id) {
+q_t *getCvar(int cvar_id) {
     return (q_t *) HashMap_find(cvarMap, cvar_id);
+}
+
+int deleteCvar(int cvar_id) {
+	q_t *cvarQ = (q_t *) HashMap_remove(cvarMap, cvar_id);
+	
+	// if the cvarQ is NULL, return ERROR
+	if (cvarQ == NULL) return ERROR;
+	
+	// if it has some waiters, return ERROR;
+	if (peek_q(cvarQ) != NULL) return ERROR;
+	
+	// otherwise, the cvar is safe to be deleted
+	delete_q(cvarQ, NULL);
+	
+	return SUCCESS;
 }

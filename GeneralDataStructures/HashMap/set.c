@@ -105,17 +105,57 @@ set_iterate(set_t *set, void *arg, void (*itemfunc)(void *arg, int key, void *it
 	}
 }
 
+/**************** set_remove() ****************/
+void *
+set_remove(set_t *set, int key)
+{
+	if (set == NULL) return NULL;
+	setnode_t *currNode = set->head;
+	if (currNode == NULL) return NULL;
+	
+	// checks the head first
+	void *item;
+	if (currNode->key == key) {
+		item = currNode->item;
+		set->head = currNode->next;
+		free(currNode);
+		return item;
+	}
+	
+	// start checking each next node instead
+	setnode_t *nextNode = currNode->next;
+	setnode_t *nextNextNode;
+	while (nextNode != NULL) {
+		// if the target item is found, remove and free the node before returning
+		if (nextNode->key == key) {
+			item = nextNode->item;
+			setnode_t *nextNextNode = nextNode->next;
+			free(nextNode);
+			currNode->next = nextNextNode;
+			return item;
+		}
+		
+		// else, advance to the next "nextNode"
+		currNode = nextNode;
+		nextNode = nextNode->next;
+	}
+	
+	// no item matching the key is found; return NULL
+	return NULL;
+}
+
 /**************** set_delete() ****************/
 void 
 set_delete(set_t *set, void (*itemdelete)(void *item) )
 {
 	if (set != NULL) {
 		setnode_t *node;
+		setnode_t *next;
 		for (node = set->head; node != NULL; ) {
 			if (itemdelete != NULL) {		    // if possible...
 				(*itemdelete)(node->item);	    // delete node's item
 			}
-			setnode_t *next = node->next;	    // remember what comes next
+			next = node->next;	    // remember what comes next
 			free(node);			    // free the node
 			node = next;			    // and move on to next
 		}

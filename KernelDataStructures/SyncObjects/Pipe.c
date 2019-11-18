@@ -32,3 +32,26 @@ int initPipe(int *pipe_idp) {
 pipe_t *getPipe(int pipe_id) {
 	return (pipe_t *) HashMap_find(pipeMap, pipe_id);
 }
+
+int deletePipe(int pipe_id) {
+	pipe_t *pipep = (pipe_t *) HashMap_remove(pipeMap, pipe_id);
+	
+	// if the pipep, its buffer, or its waitingQ is NULL, return ERROR
+	if (pipep == NULL || \
+		pipep->buffer == NULL || \
+		pipep->waitingQ == NULL) {
+		return ERROR;
+	}
+	
+	// if it has some waiters, return ERROR;
+	if (peek_q(pipep->waitingQ) != NULL) {
+		return ERROR;
+	}
+	
+	// otherwise, the pipe is safe to be deleted
+	free(pipep->buffer);
+	delete_q(pipep->waitingQ, NULL);
+	free(pipep);
+	
+	return SUCCESS;
+}

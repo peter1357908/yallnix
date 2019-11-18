@@ -29,4 +29,10 @@ int initLock(int *lock_idp);
 // find and returns the lock associated with the lock_id (NULL if any error)
 lock_t *getLock(int lock_id);
 
+/* delete an individual lock from the lockMap if the lock has no 
+ * owner nor waiters. (the lock and the waitingQ will be freed).
+ * returns SUCCESS if deletion is successful; otherwise ERROR
+ */
+int deleteLock(int lock_id);
+
 #endif /* _Lock_h */

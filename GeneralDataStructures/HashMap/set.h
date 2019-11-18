@@ -23,29 +23,35 @@ typedef struct set set_t;  // opaque to users of the module
 
 /**************** functions ****************/
 
-/* Create a new (empty) set; return NULL if error. */
+/* Creates a new (empty) set; returns NULL if error. */
 set_t *set_new(void);
 
-/* Insert item, identified by a key (integer), into the given set.
- * Return ERROR if malloc failed, the key exists, or any parameter is NULL;
- * return 0 iff new item was inserted.
+/* Inserts item, identified by a key (integer), into the given set.
+ * Returns ERROR if malloc failed, the key exists, or any parameter is NULL;
+ * returns 0 iff new item was inserted.
  */
 int set_insert(set_t *set, int key, void *item);
 
-/* Return the item associated with the given key;
- * return NULL if set is NULL or key is not found.
+/* Returns the item associated with the given key;
+ * returns NULL if set is NULL or key is not found.
  */
 void *set_find(set_t *set, int key);
 
-/* Iterate over all items in the set, in undefined order.
- * Call the given function on each item, with (arg, key, item).
- * If set==NULL or itemfunc==NULL, do nothing.
+/* Iterates over all items in the set, in undefined order.
+ * Calls the given function on each item, with (arg, key, item).
+ * If set==NULL or itemfunc==NULL, does nothing.
  */
 void set_iterate(set_t *set, void *arg,
 		 void (*itemfunc)(void *arg, int key, void *item) );
 
-/* Delete the whole set; ignore NULL set.
- * Provide a function that will delete each item (may be NULL).
+/* Removes and returns a specific item from the set based on 
+ * the key, if it exists; returns NULL for NULL set or if fails
+ * to find the corresponding item.
+ */
+void *set_remove(set_t *set, int key);
+
+/* Deletes the whole set; ignores NULL set.
+ * Takes in a function for deleting each item (may be NULL).
  */
 void set_delete(set_t *set, void (*itemdelete)(void *item) );
 

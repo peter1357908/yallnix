@@ -77,6 +77,17 @@ HashMap_iterate(HashMap_t *hm, void *arg, void (*itemfunc)(void *arg, int key, v
 	}
 }
 
+/**************** HashMap_remove() ****************/
+void *
+HashMap_remove(HashMap_t *hm, int key)
+{
+	if (hm != NULL) {
+		return set_remove(hm->sets[(key % (hm->size))], key);
+	}
+	// HashMap is NULL
+	return NULL;
+}
+
 /**************** HashMap_delete() ****************/
 void 
 HashMap_delete(HashMap_t *hm, void (*itemdelete)(void *item) )
