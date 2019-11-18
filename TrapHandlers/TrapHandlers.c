@@ -36,6 +36,9 @@ void handleTrapKernel(UserContext *uctxt) {
         case YALNIX_DELAY:
             return_code = KernelDelay((int)(uctxt->regs)[0]);
             break;
+		case YALNIX_RECLAIM:
+			return_code = KernelReclaim((int)(uctxt->regs)[0]);
+			break;
         case YALNIX_TTY_READ:
             return_code = KernelTtyRead((int)(uctxt->regs)[0], \
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
@@ -43,7 +46,7 @@ void handleTrapKernel(UserContext *uctxt) {
         case YALNIX_TTY_WRITE:
             return_code = KernelTtyWrite((int)(uctxt->regs)[0], \
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
-            break; 
+            break;
 
         #ifdef LINUX
         case YALNIX_LOCK_INIT:
@@ -78,7 +81,7 @@ void handleTrapKernel(UserContext *uctxt) {
             return_code = KernelPipeWrite((int)(uctxt->regs)[0], \
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
 			break;
-        #endif
+        #endif /* LINUX */
     }
 	
 	(uctxt->regs)[0] = (u_long) return_code;

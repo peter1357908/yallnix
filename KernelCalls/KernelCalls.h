@@ -12,6 +12,11 @@ int KernelBrk(void *addr);
 int KernelDelay(int clock_ticks);
 int KernelReclaim(int id);
 
+// tty stuff
+int KernelTtyWrite(int tty_id, void *buf, int len);
+int KernelTtyRead(int tty_id, void *buf, int len);
+
+#ifdef LINUX
 // lock stuff
 int KernelLockInit(int *lock_idp);
 int KernelAcquire(int lock_id);
@@ -23,13 +28,10 @@ int KernelCvarSignal(int cvar_id);
 int KernelCvarBroadcast(int cvar_id);
 int KernelCvarWait(int cvar_id, int lock_id);
 
-// tty stuff
-int KernelTtyWrite(int tty_id, void *buf, int len);
-int KernelTtyRead(int tty_id, void *buf, int len);
-
 // pipe stuff
 int KernelPipeInit(int *pip_idp);
 int KernelPipeRead(int pipe_id, void *buf, int len);
 int KernelPipeWrite(int pipe_id, void *buf, int len);
+#endif /* LINUX */
 
 #endif /* _KernelCalls_h */
