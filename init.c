@@ -3,13 +3,14 @@
 #include <stdio.h>
 
 #define DELAY_LENGTH 2
-#define PARENT_DELAY_LENGTH 1
+#define PARENT_DELAY_LENGTH 2
 #define PARENT_EXIT_STATUS 20
-#define CHILD_DELAY_LENGTH 1
+#define CHILD_DELAY_LENGTH 2
 #define CHILD_EXIT_STATUS 30
 #define GRANDCHILD_EXIT_STATUS 40
 #define MALLOC_SIZE 1024
-#define READ_SIZE 10
+#define PIPE_READ_SIZE 20
+#define TTY_READ_SIZE 10
 #define EXEC_FILENAME "execTest"
 
 void main() {
@@ -35,6 +36,11 @@ void main() {
 	int cvar_id;
 	CvarInit(&cvar_id);
 	TtyPrintf(0, "cvar id = %d...\n", cvar_id);
+	
+	TtyPrintf(0, "init initializing pipe...\n");
+	int pipe_id;
+	PipeInit(&pipe_id);
+	TtyPrintf(0, "pipe id = %d...\n", pipe_id);
 
 	TtyPrintf(0, "init calling Fork()...\n");
 	pid = Fork();
@@ -58,14 +64,23 @@ void main() {
 			CvarWait(cvar_id, lock_id);
 
 			// imagine the following is being done by another process
-			// but we can't do this yet, because we don't have pipes
+			// how do we test a shared condition if processes share nothing in userland...?
 			condition++;
 		}
 
 		TtyPrintf(0, "condition != 0, so child (pid = %d) is proceeding...\n", pid);
-
+		
 		TtyPrintf(0, "child (pid = %d) is releasing lock %d...\n", pid, lock_id);
 		Release(lock_id);
+		
+		char *first_string = "1234567890";  // size without NULL: 10
+		char *second_string = "abcdefghijklmnopqrstuvwxyz";  // size without NULL: 26
+		TtyPrintf(0, "child writing 10 bytes, \"%s\", fewer than expected bytes (%d) to pipe %d\n", first_string, PIPE_READ_SIZE);
+		PipeWrite(pipe_id, (void *) first_string, 10);
+		TtyPrintf(0, "child writing 26 more bytes, \"%s\"; now pipe %d has 36 bytes, more than the expected length (%d bytes)\n", second_string, pipe_id, PIPE_READ_SIZE);
+		PipeWrite(pipe_id, (void *) second_string, 26);
+		TtyPrintf(0, "child is delaying for another %d ticks so the parent can print the read bytes\n", CHILD_DELAY_LENGTH);
+		Delay(CHILD_DELAY_LENGTH);
 
 		TtyPrintf(0, "child (pid = %d) is calling Fork()...\n", pid);
 		pid = Fork();
@@ -78,9 +93,9 @@ void main() {
 			int num_read;
 			char *buffer = (char *) malloc(TERMINAL_MAX_LINE);
 			for (i = 1; i < NUM_TERMINALS; i++) {
-				TtyPrintf(i, "Terminal %d, give me (pid = %d) something to read (%d characters):\n", i, pid, READ_SIZE);
+				TtyPrintf(i, "Terminal %d, give me (pid = %d) something to read (%d characters):\n", i, pid, TTY_READ_SIZE);
 				
-				num_read = TtyRead(i, buffer, READ_SIZE);
+				num_read = TtyRead(i, buffer, TTY_READ_SIZE);
 				
 				buffer[num_read] = '\0';
 				
@@ -120,9 +135,25 @@ void main() {
 
 		TtyPrintf(0, "parent signaling cvar %d...\n", cvar_id);
 		CvarSignal(cvar_id);
+		
+		TtyPrintf(0, "parent trying to read %d bytes from pipe %d... (currently there should be nothing in the pipe, and the next time the child wakes up, it will write something into it)\n", PIPE_READ_SIZE, pipe_id);
+		char *buf = (char *) malloc(PIPE_READ_SIZE + 1);
+		int lenRead = PipeRead(pipe_id, buf, PIPE_READ_SIZE);
+		buf[lenRead] = '\0';
+		TtyPrintf(0, "parent just read %d characters:\n%s\n", lenRead, buf);
+		free(buf);
+		
+		TtyPrintf(0, "parent calling Reclaim on the lock (%d), cvar (%d), and pipe (%d)\n", lock_id, cvar_id, pipe_id);
+		Reclaim(lock_id);
+		Reclaim(cvar_id);
+		Reclaim(pipe_id);
+		
+		// TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
+		// TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
 
 		TtyPrintf(0, "parent calling Wait()\n");
 		Wait(&status);
+		
 		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);
 	}
 
