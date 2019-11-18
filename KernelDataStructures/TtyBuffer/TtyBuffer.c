@@ -90,7 +90,7 @@ int readBuffer(int tty_id, void *buf, int len) {
 	if (len < ttyBuf->numBytesWritten) {
 		memmove(buf, ttyBuf->base, len);
 		
-		// some bytes remain unread, move them to the base
+		// some bytes remain unread; move them to the base
 		int numRemainingBytes = ttyBuf->numBytesWritten - len;
 		void *baseOfRemaining = ttyBuf->base + len;
         memmove(ttyBuf->base, baseOfRemaining, numRemainingBytes);
@@ -106,7 +106,7 @@ int readBuffer(int tty_id, void *buf, int len) {
 		
 		memmove(buf, ttyBuf->base, ttyBuf->numBytesWritten);
 		
-		// all available bytes are read, set the numBytesWritten to 0
+		// all available bytes are read; set the numBytesWritten to 0
 		ttyBuf->numBytesWritten = 0;
 		ttyBuf->isLineReady = 0;
 		

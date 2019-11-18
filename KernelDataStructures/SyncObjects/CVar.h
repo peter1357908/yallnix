@@ -1,8 +1,7 @@
 // Cvar.h
-#ifndef _CVAR_h
-#define _CVAR_h
+#ifndef _CVar_h
+#define _CVar_h
 
-#include "../Scheduler/Scheduler.h"  // PCB_t
 #include "../../GeneralDataStructures/HashMap/HashMap.h" // HashMap_t
 #include "../../GeneralDataStructures/Queue/Queue.h" // q_t
 
@@ -20,4 +19,4 @@ int initCvar(int *cvar_idp);
 // find and returns the cvarQ associated with the cvar_id (NULL if any error)
 q_t *getCvarQ(int cvar_id);
 
-#endif /* _CVAR_h */
+#endif /* _CVar_h */

@@ -1,5 +1,4 @@
 #include "../KernelDataStructures/SyncObjects/Cvar.h"
-#include "../KernelDataStructures/SyncObjects/Lock.h"
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "KernelCalls.h" // for KernelRelease and KernelAcquire
 #include "../Kernel.h"  // SUCCESS

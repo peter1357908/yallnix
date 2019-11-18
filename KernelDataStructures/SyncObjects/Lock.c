@@ -14,7 +14,7 @@ int initLock(int *lock_idp) {
     lock_t *lockp = (lock_t *) malloc(sizeof(lock_t));
 	
 	// return ERROR if malloc'ing for the lock or the waitingQ fails
-    if (lockp == NULL || ((lockp->waitingQ = make_q())) == NULL ) {
+    if (lockp == NULL || (lockp->waitingQ = make_q()) == NULL) {
 		return ERROR;
 	}
     lockp->ownerPcbp = NULL;
@@ -22,7 +22,7 @@ int initLock(int *lock_idp) {
     // get an ID for the lock and increment the sync object count
     *lock_idp = nextSyncId++;
 
-    // store lock in LockMap
+    // store lock in lockMap
     return HashMap_insert(lockMap, *lock_idp, lockp);
 }
 

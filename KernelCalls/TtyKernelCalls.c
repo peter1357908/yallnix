@@ -1,9 +1,9 @@
+#include "KernelCalls.h"
+#include "../KernelDataStructures/Scheduler/Scheduler.h"
+#include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
 #include <hardware.h>
 #include <yalnix.h>
 #include <string.h>
-#include "../KernelDataStructures/Scheduler/Scheduler.h"
-#include "./KernelCalls.h"
-#include "../KernelDataStructures/TtyBuffer/TtyBuffer.h"
 
 #define min(a, b) (a < b ? a : b) 
 
