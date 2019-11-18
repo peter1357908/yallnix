@@ -2,10 +2,10 @@
 #include <hardware.h>
 #include <stdio.h>
 
-#define DELAY_LENGTH 2
+#define DELAY_LENGTH 1
 #define PARENT_DELAY_LENGTH 2
 #define PARENT_EXIT_STATUS 20
-#define CHILD_DELAY_LENGTH 2
+#define CHILD_DELAY_LENGTH 1
 #define CHILD_EXIT_STATUS 30
 #define GRANDCHILD_EXIT_STATUS 40
 #define MALLOC_SIZE 1024

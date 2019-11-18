@@ -14,7 +14,7 @@ int KernelFork(void) {
     PCB_t *parentPCB = currPCB;
     PCB_t *childPCB;  
 
-    if (initProcess(&childPCB) == ERROR) return ERROR;
+    if (initChildProcess(&childPCB) == ERROR) return ERROR;
 
     childPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
     memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
@@ -60,7 +60,7 @@ int KernelFork(void) {
     childPCB->parent = parentPCB;
     (parentPCB->numChildren)++; 
     
-    if (forkProcess(childPCB->pid) == ERROR) return ERROR;
+    if (forkProcess(childPCB) == ERROR) return ERROR;
 	
 	TracePrintf(1, "Inside KernelFork(), after forkProcess(), currPCB->pid = %d\n",  currPCB->pid);
 

@@ -20,7 +20,7 @@ TRACE.txt
 **/*.o
 yalnix
 init
-execTest
+test/*
 
 
 # For convenience
