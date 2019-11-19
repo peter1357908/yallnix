@@ -16,7 +16,7 @@ int KernelAcquire(int lock_id) {
 	// get the lock first
     lock_t *lockp = getLock(lock_id);
     if (lockp == NULL) {
-        TracePrintf(1, "KernelAcquire: lock %d is null", lock_id);
+        TracePrintf(1, "KernelAcquire: lock %d is null\n", lock_id);
         return ERROR;
     } 
 	
@@ -47,7 +47,7 @@ int KernelRelease(int lock_id) {
 		lockp->ownerPcbp == NULL || \
 		lockp->ownerPcbp != currPCB || \
 		lockp->waitingQ == NULL) {
-        TracePrintf(1, "KernelAcquire: lock %d is null", lock_id);
+        TracePrintf(1, "KernelAcquire: lock %d is null\n", lock_id);
 		return ERROR;
 	}
 	

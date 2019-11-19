@@ -35,13 +35,11 @@ int nextSyncId;
 
 /* --------- the following are for initialization --------- */
 
-// initializes PCB
-int initPCB(PCB_t **pcb);
+// initializes a PCB and save it in the given pcbpp
+int initPCB(PCB_t **pcbpp);
 
 // calls initPCB & places process in readyQ
-int initProcess(PCB_t **pcb);
-
-int initChildProcess(PCB_t **pcb);
+int initProcess(PCB_t **pcbpp);
 
 // a special case of initProcess, only used for... the Init process.
 int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp);

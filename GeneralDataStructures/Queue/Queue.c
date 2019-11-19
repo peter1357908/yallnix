@@ -44,7 +44,7 @@ int enq_q(q_t *queue, void *item) {
 	
 	qnode_t *node = (qnode_t *) malloc(sizeof(qnode_t));
 	if (node == NULL) {
-		TracePrintf(1, "enq_q: error malloc'ing node");
+		TracePrintf(1, "enq_q: error malloc'ing node\n");
 		return ERROR;
 	}
 	node->item = item;

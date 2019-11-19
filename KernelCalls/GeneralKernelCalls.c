@@ -15,7 +15,7 @@ int KernelFork(void) {
     PCB_t *parentPCB = currPCB;
     PCB_t *childPCB;  
 
-    if (initChildProcess(&childPCB) == ERROR) return ERROR;
+    if (initPCB(&childPCB) == ERROR) return ERROR;
 
     childPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
     memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
@@ -72,7 +72,7 @@ int KernelFork(void) {
         return SUCCESS;
     }
     else {
-        TracePrintf(1, "KernelFork: fatal error after forking");
+        TracePrintf(1, "KernelFork: fatal error after forking\n");
         return ERROR;
     }
 }
@@ -99,22 +99,21 @@ void KernelExit(int status) {
 }
 
 int KernelWait(int *status_ptr) {
+	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
     int region = getAddressRegion(status_ptr);
     if (region != 1) {
-        TracePrintf(1, "KernelWait: status_ptr not in region 1");
+        TracePrintf(1, "KernelWait: status_ptr not in region 1\n");
         return ERROR; 
     } 
     
     u_long prot;
     if (getAddressProt(status_ptr, region, &prot) == ERROR || \
-        prot && (PROT_READ | PROT_WRITE) != (PROT_READ | PROT_WRITE)) {
-            TracePrintf(1, "KernelWait: status_prtr not read/write");
+        prot != (PROT_READ | PROT_WRITE)) {
+            TracePrintf(1, "KernelWait: status_ptr not READ|WRITE\n");
             return ERROR;
     }
-
-	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
     if (currPCB->numChildren <= 0) 
-        TracePrintf(1, "KernelWait: no children to wait for");
+        TracePrintf(1, "KernelWait: no children to wait for\n");
         return ERROR;
 
 	// if the parent has no exited children yet, block the parent...
@@ -146,14 +145,13 @@ int KernelGetPid() {
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
-
+    TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
     int region = getAddressRegion(addr);
     if (region != 1) {
-        TracePrintf(1, "KernelBrk: addr not in region 1");
+        TracePrintf(1, "KernelBrk: addr not in region 1\n");
         return ERROR; 
     } 
 
-    TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;
     struct pte *targetPtep;
@@ -191,7 +189,7 @@ int KernelDelay(int clock_ticks) {
     TracePrintf(1, "KernelDelay() called, currPCB->pid = %d, clock_ticks = %d\n",  currPCB->pid, clock_ticks);
 	if (clock_ticks != 0) {
 		if (clock_ticks < 0) {
-            TracePrintf(1, "KernelDelay: negative clock_ticks");
+            TracePrintf(1, "KernelDelay: negative clock_ticks\n");
 			return ERROR;
         } 
         if (sleepProcess(clock_ticks) == ERROR) {
@@ -213,6 +211,6 @@ int KernelReclaim(int id) {
 	if (getPipe(id) != NULL) return deletePipe(id);
 	
 	// the given id does not correspond to any sync object; return ERROR
-    TracePrintf(1, "KernelReclaim: id does not correspond to any sync object");
+    TracePrintf(1, "KernelReclaim: id does not correspond to any sync object\n");
 	return ERROR;
 }

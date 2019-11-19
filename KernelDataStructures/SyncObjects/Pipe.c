@@ -18,7 +18,7 @@ int initPipe(int *pipe_idp) {
     if ( pipep == NULL || \
 		(pipep->buffer = (void *) malloc(PIPE_MAX_BYTES)) == NULL || \
 		(pipep->waitingQ = make_q()) == NULL ) {
-		TracePrintf(1, "initPipe: malloc failed for Pipe");
+		TracePrintf(1, "initPipe: malloc failed for Pipe\n");
 		return ERROR;
 	}
     pipep->numBytesWritten = 0;
@@ -41,13 +41,13 @@ int deletePipe(int pipe_id) {
 	if (pipep == NULL || \
 		pipep->buffer == NULL || \
 		pipep->waitingQ == NULL) {
-		TracePrintf(1, "deletePipe: pipe is null");
+		TracePrintf(1, "deletePipe: pipe is null\n");
 		return ERROR;
 	}
 	
 	// if it has some waiters, return ERROR;
 	if (peek_q(pipep->waitingQ) != NULL) {
-		TracePrintf(1, "deletePipe: pipe has waiters");
+		TracePrintf(1, "deletePipe: pipe has waiters\n");
 		return ERROR;
 	}
 	

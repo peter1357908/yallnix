@@ -50,7 +50,7 @@ HashMap_insert(HashMap_t *hm, int key, void *item)
 		return set_insert(hm->sets[(key % (hm->size))], key, item);
 	}
 	// some parameter is NULL, return ERROR
-	TracePrintf(1, "HashMap_insert: some parameter is null");
+	TracePrintf(1, "HashMap_insert: some parameter is null\n");
 	return ERROR;
 }
 

@@ -14,7 +14,7 @@ int KernelCvarInit(int *cvar_idp) {
 int KernelCvarWait(int cvar_id, int lock_id){
     q_t *cvarQ = getCvar(cvar_id);
      if (cvarQ == NULL) {
-        TracePrintf(1, "KernelCvarWait: cvar %d is null", cvar_id);
+        TracePrintf(1, "KernelCvarWait: cvar %d is null\n", cvar_id);
         return ERROR;
     }
 	
@@ -38,7 +38,7 @@ int KernelCvarWait(int cvar_id, int lock_id){
 int KernelCvarSignal(int cvar_id){
 	q_t *cvarQ = getCvar(cvar_id);
     if (cvarQ == NULL) {
-        TracePrintf(1, "KernelCvarSignal: cvar %d is null", cvar_id);
+        TracePrintf(1, "KernelCvarSignal: cvar %d is null\n", cvar_id);
         return ERROR;
     }
 	
@@ -55,7 +55,7 @@ int KernelCvarSignal(int cvar_id){
 int KernelCvarBroadcast(int cvar_id){
 	q_t *cvarQ = getCvar(cvar_id);
     if (cvarQ == NULL) {
-        TracePrintf(1, "KernelCvarBroadcast: cvar %d is null", cvar_id);
+        TracePrintf(1, "KernelCvarBroadcast: cvar %d is null\n", cvar_id);
         return ERROR;
     }
 	

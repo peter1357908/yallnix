@@ -148,7 +148,8 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 
 // ==>> You should perhaps check that malloc returned valid space
   if (cp2 == NULL) {
-    ;
+    TracePrintf(1, "LoadProgram: malloc failed for cp2; returning KILL\n");
+    return KILL;
   }
 
   for (i = 0; args[i] != NULL; i++) {

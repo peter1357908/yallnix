@@ -34,9 +34,9 @@ void main() {
 	// char *bigstackArgs[] = {BIGSTACK_TEST, NULL};
 	// Exec(BIGSTACK_TEST, bigstackArgs);
 
-	TtyPrintf(0, "init running %s", TORTURE_TEST);
-	char *tortureArgs[] = {TORTURE_TEST, NULL};
-	Exec(TORTURE_TEST, tortureArgs);
+	// TtyPrintf(0, "init running %s", TORTURE_TEST);
+	// char *tortureArgs[] = {TORTURE_TEST, NULL};
+	// Exec(TORTURE_TEST, tortureArgs);
 
 	TtyPrintf(0, "init calling GetPid()...\n");
 	int pid = GetPid();
@@ -167,17 +167,17 @@ void main() {
 		TtyPrintf(0, "parent just read %d characters:\n%s\n", lenRead, buf);
 		free(buf);
 		
-		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);
-	}
-	
-	TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
+		TtyPrintf(0, "parent calling Wait()\n");
+		Wait(&status);
 		
-	TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
-	TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
-
-	TtyPrintf(0, "parent calling Wait()\n");
-	Wait(&status);
-	
-	TtyPrintf(0, "parent exiting with status code = %d...\n", PARENT_EXIT_STATUS);
-	Exit(PARENT_EXIT_STATUS);
+		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);
+		
+		TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
+			
+		TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
+		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
+		
+		TtyPrintf(0, "parent exiting with status code = %d...\n", PARENT_EXIT_STATUS);
+		Exit(PARENT_EXIT_STATUS);
+	}
 }
