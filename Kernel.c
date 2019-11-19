@@ -177,6 +177,7 @@ int SetKernelBrk(void *addr) {
 	
 	// if it were to grow into the kernel stack, return ERROR
 	if ((int) addr >= KERNEL_STACK_BASE) {
+		TracePrintf(1, "SetKernelBrk: addr grows into kernel stack");
 		return ERROR;
 	}
 	

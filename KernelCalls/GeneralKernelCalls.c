@@ -72,6 +72,7 @@ int KernelFork(void) {
         return SUCCESS;
     }
     else {
+        TracePrintf(1, "KernelFork: fatal error after forking");
         return ERROR;
     }
 }
@@ -100,20 +101,20 @@ void KernelExit(int status) {
 int KernelWait(int *status_ptr) {
     int region = getAddressRegion(status_ptr);
     if (region != 1) {
-        TracePrintf(1, "ERROR: status_ptr not in region 1");
+        TracePrintf(1, "KernelWait: status_ptr not in region 1");
         return ERROR; 
     } 
     
     u_long prot;
     if (getAddressProt(status_ptr, region, &prot) == ERROR || \
         prot && (PROT_READ | PROT_WRITE) != (PROT_READ | PROT_WRITE)) {
-            TracePrintf(1, "ERROR: status_prtr not read/write");
+            TracePrintf(1, "KernelWait: status_prtr not read/write");
             return ERROR;
     }
 
 	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
     if (currPCB->numChildren <= 0) 
-        TracePrintf(1, "ERROR: no children to wait for");
+        TracePrintf(1, "KernelWait: no children to wait for");
         return ERROR;
 
 	// if the parent has no exited children yet, block the parent...
@@ -125,7 +126,7 @@ int KernelWait(int *status_ptr) {
     // ** process is now running & zombieQueue has children ** 
     zombie_t *childZombiep = deq_q(currPCB->zombieQ);
 	if (childZombiep == NULL) {
-		TracePrintf(1, "KernelWait() is returning with ERROR because currPCB (pid = %d) should be a parent unblocked from Wait(), but dequeuing its zombieQ somehow returned NULL\n", currPCB->pid);
+		TracePrintf(1, "KernelWait: is returning with ERROR because currPCB (pid = %d) should be a parent unblocked from Wait(), but dequeuing its zombieQ somehow returned NULL\n", currPCB->pid);
 		return ERROR;
 	}
 	
@@ -148,7 +149,7 @@ int KernelBrk(void *addr) {
 
     int region = getAddressRegion(addr);
     if (region != 1) {
-        TracePrintf(1, "ERROR: KernelBrk address not in region 1");
+        TracePrintf(1, "KernelBrk: addr not in region 1");
         return ERROR; 
     } 
 
@@ -189,9 +190,12 @@ int KernelBrk(void *addr) {
 int KernelDelay(int clock_ticks) {
     TracePrintf(1, "KernelDelay() called, currPCB->pid = %d, clock_ticks = %d\n",  currPCB->pid, clock_ticks);
 	if (clock_ticks != 0) {
-		if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
-            TracePrintf(1, "ERROR: invalid: negative clock_ticks");
+		if (clock_ticks < 0) {
+            TracePrintf(1, "KernelDelay: negative clock_ticks");
 			return ERROR;
+        } 
+        if (sleepProcess(clock_ticks) == ERROR) {
+            return ERROR;
 		}
 	}
     // scheduler should grab another ready process & context switch into it
@@ -209,6 +213,6 @@ int KernelReclaim(int id) {
 	if (getPipe(id) != NULL) return deletePipe(id);
 	
 	// the given id does not correspond to any sync object; return ERROR
-    TracePrintf(1, "ERROR: KernelReclaim id does not correspond to any sync object");
+    TracePrintf(1, "KernelReclaim: id does not correspond to any sync object");
 	return ERROR;
 }

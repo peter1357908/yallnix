@@ -53,6 +53,7 @@ set_insert(set_t *set, int key, void *item)
 	
 		if (node == NULL) {
 			// error allocating memory for node; return ERROR
+			TracePrintf(1, "set_insert: error allocating memory for node");
 			return ERROR;
 		} else {
 			// the key doesn't exist, and node is allocated - fill it up.
@@ -67,6 +68,7 @@ set_insert(set_t *set, int key, void *item)
 	}
 
 	// return ERROR if any of the parameter is NULL
+	TracePrintf(1, "set_insert: some paramater is null");
 	return ERROR;
 }
 

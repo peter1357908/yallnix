@@ -33,6 +33,7 @@ int getVirtualAddr(struct pte *ptep) {
 		vpn = ((int) ptep - r1Base) / sizeof(struct pte) + MAX_PT_LEN;
 	}
 	else {
+		TracePrintf(1, "getVirtualAddr: invalid virtual address");
 		return ERROR;
 	}
 	return vpn<<PAGESHIFT;
@@ -81,6 +82,7 @@ int getAddressProt(void *addr, int region, u_long *prot) {
 		ptBase = (struct pte *) ReadRegister(REG_PTBR1);
 	}
 	else {
+		TracePrintf(1, "getAddressProt: invalid region given given to getAddressProt");
 		return ERROR;
 	}
 	

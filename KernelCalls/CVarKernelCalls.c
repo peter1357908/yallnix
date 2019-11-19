@@ -13,7 +13,11 @@ int KernelCvarInit(int *cvar_idp) {
 
 int KernelCvarWait(int cvar_id, int lock_id){
     q_t *cvarQ = getCvar(cvar_id);
-    if (cvarQ == NULL) return ERROR;
+     if (cvarQ == NULL) {
+        TracePrintf(1, "KernelCvarWait: cvar %d is null", cvar_id);
+        return ERROR;
+    }
+	
 	
 	// enqueue the currPCB in the cvarQ
 	// dequeuing happens during Signal()/Broadcast()
@@ -33,7 +37,10 @@ int KernelCvarWait(int cvar_id, int lock_id){
 
 int KernelCvarSignal(int cvar_id){
 	q_t *cvarQ = getCvar(cvar_id);
-    if (cvarQ == NULL) return ERROR;
+    if (cvarQ == NULL) {
+        TracePrintf(1, "KernelCvarSignal: cvar %d is null", cvar_id);
+        return ERROR;
+    }
 	
     // pop one waiting process from cvarQ & retrive pid & lock
     PCB_t *waitingPcbp = (PCB_t *) deq_q(cvarQ);
@@ -47,7 +54,10 @@ int KernelCvarSignal(int cvar_id){
 
 int KernelCvarBroadcast(int cvar_id){
 	q_t *cvarQ = getCvar(cvar_id);
-    if (cvarQ == NULL) return ERROR;
+    if (cvarQ == NULL) {
+        TracePrintf(1, "KernelCvarBroadcast: cvar %d is null", cvar_id);
+        return ERROR;
+    }
 	
 	// keep dequeuing until the cvarQ is empty
     PCB_t *waitingPcbp;

@@ -43,18 +43,18 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
    * Open the executable file 
    */
   if ((fd = open(name, O_RDONLY)) < 0) {
-    TracePrintf(0, "LoadProgram: can't open file '%s'\n", name);
+    TracePrintf(1, "LoadProgram: can't open file '%s'\n", name);
     return ERROR;
   }
 
   if (LoadInfo(fd, &li) != LI_NO_ERROR) {
-    TracePrintf(0, "LoadProgram: '%s' not in Yalnix format\n", name);
+    TracePrintf(1, "LoadProgram: '%s' not in Yalnix format\n", name);
     close(fd);
     return (-1);
   }
 
   if (li.entry < VMEM_1_BASE) {
-    TracePrintf(0, "LoadProgram: '%s' not linked for Yalnix\n", name);
+    TracePrintf(1, "LoadProgram: '%s' not linked for Yalnix\n", name);
     close(fd);
     return ERROR;
   }
@@ -148,7 +148,7 @@ int LoadProgram(char *name, char *args[], PCB_t *proc)
 
 // ==>> You should perhaps check that malloc returned valid space
   if (cp2 == NULL) {
-    return ERROR;
+    ;
   }
 
   for (i = 0; args[i] != NULL; i++) {

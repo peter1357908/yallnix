@@ -37,11 +37,16 @@ void delete_q(q_t *queue, void (*itemdelete)(void *item)) {
 }
 
 int enq_q(q_t *queue, void *item) {
-	if (queue == NULL) return ERROR;
+	if (queue == NULL) {
+		TracePrintf(1, "enq_q: queue is null");
+		return ERROR;
+	}
 	
 	qnode_t *node = (qnode_t *) malloc(sizeof(qnode_t));
-	if (node == NULL) return ERROR;
-	
+	if (node == NULL) {
+		TracePrintf(1, "enq_q: error malloc'ing node");
+		return ERROR;
+	}
 	node->item = item;
 	node->node_behind = NULL;
 	

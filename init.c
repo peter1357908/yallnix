@@ -34,9 +34,9 @@ void main() {
 	// char *bigstackArgs[] = {BIGSTACK_TEST, NULL};
 	// Exec(BIGSTACK_TEST, bigstackArgs);
 
-	// TtyPrintf(0, "init running %s", TORTURE_TEST);
-	// char *tortureArgs[] = {TORTURE_TEST, NULL};
-	// Exec(TORTURE_TEST, tortureArgs);
+	TtyPrintf(0, "init running %s", TORTURE_TEST);
+	char *tortureArgs[] = {TORTURE_TEST, NULL};
+	Exec(TORTURE_TEST, tortureArgs);
 
 	TtyPrintf(0, "init calling GetPid()...\n");
 	int pid = GetPid();

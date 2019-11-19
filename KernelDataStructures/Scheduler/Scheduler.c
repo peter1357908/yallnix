@@ -35,12 +35,14 @@ q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 int initPCB(PCB_t **pcb) {
 	 PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (newPCB == NULL) {
+		TracePrintf(1, "initPCB: error malloc'ing PCB");
         return ERROR;
     }
 
     newPCB->pid = nextPid++;
     newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (newPCB->uctxt == NULL) {
+		TracePrintf(1, "initPCB: error malloc'ing UserContext");
         return ERROR;
     }
     newPCB->kctxt = NULL;
@@ -77,6 +79,7 @@ int initChildProcess(PCB_t **pcb) {
 int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
     PCB_t *initPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (initPCB == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing PCB");
         return ERROR;
     }
 
@@ -85,6 +88,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 	
     initPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (initPCB->uctxt == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing UserContext");
         return ERROR;
     }
 	
@@ -93,6 +97,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 	 */
     initPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
 	if (initPCB->kctxt == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing KernelContext");
 		return ERROR;
 	}
 	
@@ -153,8 +158,8 @@ int sleepProcess(int numRemainingDelayTicks) {
 	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d, ticks = %d\n", currPCB->pid, numRemainingDelayTicks);
 	
 	if (numRemainingDelayTicks <= 0) {
-		TracePrintf(1, "sleepProcess() exiting with 0 because given non-positive ticks\n");
-		return 0;
+		TracePrintf(1, "sleepProcess: exiting with SUCCESS because given non-positive ticks\n");
+		return SUCCESS;
 	}
 	
 	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
@@ -163,7 +168,10 @@ int sleepProcess(int numRemainingDelayTicks) {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "sleepProcess: readyQ is empty");
+		return ERROR;
+	} 
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -200,7 +208,10 @@ int kickProcess() {
 	TracePrintf(1, "kickProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	
 	// first make sure that the readyQ is not NULL
-	if (readyQ == NULL) return ERROR;
+	if (readyQ == NULL) {
+		TracePrintf(1, "kickProcess: readyQ is null");
+		return ERROR;
+	}
 	
 	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
 	if (peek_q(readyQ) == NULL) {
@@ -212,8 +223,10 @@ int kickProcess() {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
-	
+	if (nextPCB == NULL) { 
+		TracePrintf(1, "kickProcess: readyQ is empty");
+		return ERROR;
+	}
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
@@ -230,6 +243,7 @@ int forkProcess(PCB_t *childPCB) {
 	if (childPCB == NULL || \
 		childPCB->parent == NULL || \
 		childPCB->parent->pid != currPCB->pid) {
+		TracePrintf(1, "forkProcess: childPCB is null");
 		return ERROR;
 	}
 	return KernelContextSwitch(forkTo, NULL, childPCB);
@@ -260,7 +274,10 @@ int exitProcess(int exit_status) {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "exitProcess: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, NULL, nextPCB);
 }
@@ -273,7 +290,10 @@ int blockProcess(void) {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockProcess: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -283,7 +303,10 @@ int unblockProcess(int pid) {
 	TracePrintf(1, "unblockProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
 
 	// first test if the map is NULL (fatal error)
-	if (blockedMap == NULL) return ERROR;
+	if (blockedMap == NULL) {
+		TracePrintf(1, "unblockProcess: blockedMap is null");
+		return ERROR;
+	}
 	
 	PCB_t *unblockedPCB =  (PCB_t *) HashMap_remove(blockedMap, pid); 
 	
@@ -317,7 +340,10 @@ int blockTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockTransmitter: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -331,7 +357,10 @@ int unblockTransmitter(int tty_id) {
 	q_t *transmittingQ = transmittingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
-	if (transmittingQ == NULL) return ERROR;
+	if (transmittingQ == NULL) {
+		TracePrintf(1, "unblockTransmitter: fatal error: transmittingQ is null");
+		return ERROR;
+	}
 
 	PCB_t *unblockedPCB = (PCB_t *) deq_q(transmittingQ);
 
@@ -350,7 +379,10 @@ int waitTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "waitTransmitter: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -361,7 +393,10 @@ int signalTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = currTransmitters[tty_id];
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "signalTransmitter: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -374,7 +409,10 @@ int blockReader(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockReader: readyQ is empty");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -384,7 +422,10 @@ int unblockReader(int tty_id) {
 	q_t *readingQ = readingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
-	if (readingQ == NULL) return ERROR;
+	if (readingQ == NULL) {
+		TracePrintf(1, "unblockReader: fatal error: readyQ is null");
+		return ERROR;
+	}
 
 	PCB_t *unblockedPCB = (PCB_t *) deq_q(readingQ);
 

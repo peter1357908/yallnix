@@ -36,7 +36,10 @@ int initBuffers() {
     int i;
     for (i = 0; i < NUM_TERMINALS; i++) {
         ttyBuf = (ttyBuf_t *) malloc(sizeof(ttyBuf_t));
-        if (ttyBuf == NULL) return ERROR;
+        if (ttyBuf == NULL) {
+			TracePrintf(1, "initBufferss: malloc failed for ttyBuf");
+			return ERROR;
+		}
         
         ttyBuf->base = currBufferBase;
         ttyBuf->numBytesWritten = 0;

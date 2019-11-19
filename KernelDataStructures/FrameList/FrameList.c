@@ -6,6 +6,7 @@
 int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk) {	
 	*FrameListp = (frame_t *) malloc(sizeof(frame_t) * numFrames);
     if (*FrameListp == NULL) {
+        TracePrintf(1, "getFrame: FrameList is null");
         return ERROR;
     }
 	
@@ -27,6 +28,7 @@ int initFrameList(frame_t **FrameListp, int numFrames, void *currKernelBrk) {
 
 int getFrame(frame_t *FrameList, int numFrames, u_long *pfnp) {
     if (FrameList == NULL) {
+        TracePrintf(1, "getFrame: FrameList is null");
         return ERROR;
     }
 	
@@ -34,6 +36,7 @@ int getFrame(frame_t *FrameList, int numFrames, u_long *pfnp) {
 	int i = 0;
     while (currFrame->isFree == 0) {
         if (i >= numFrames) {
+            TracePrintf(1, "getFrame: fatal error");
             return ERROR;
         }
         currFrame++;
