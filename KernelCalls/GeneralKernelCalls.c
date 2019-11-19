@@ -3,6 +3,7 @@
 #include <string.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../KernelDataStructures/FrameList/FrameList.h"
+#include "../KernelDataStructures/PageTable/PageTable.h"
 #include "../KernelDataStructures/SyncObjects/Lock.h"
 #include "../KernelDataStructures/SyncObjects/CVar.h"
 #include "../KernelDataStructures/SyncObjects/Pipe.h"
@@ -97,9 +98,24 @@ void KernelExit(int status) {
 }
 
 int KernelWait(int *status_ptr) {
+    int region = getAddressRegion(status_ptr);
+    if (region != 1) {
+        TracePrintf(1, "ERROR: status_ptr not in region 1");
+        return ERROR; 
+    } 
+    
+    u_long prot;
+    if (getAddressProt(status_ptr, region, &prot) == ERROR || \
+        prot && (PROT_READ | PROT_WRITE) != (PROT_READ | PROT_WRITE)) {
+            TracePrintf(1, "ERROR: status_prtr not read/write");
+            return ERROR;
+    }
+
 	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
     if (currPCB->numChildren <= 0) 
+        TracePrintf(1, "ERROR: no children to wait for");
         return ERROR;
+
 	// if the parent has no exited children yet, block the parent...
     if (peek_q(currPCB->zombieQ) == NULL) {
         if (blockProcess() == ERROR) {
@@ -129,6 +145,13 @@ int KernelGetPid() {
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
+
+    int region = getAddressRegion(addr);
+    if (region != 1) {
+        TracePrintf(1, "ERROR: KernelBrk address not in region 1");
+        return ERROR; 
+    } 
+
     TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;
@@ -167,6 +190,7 @@ int KernelDelay(int clock_ticks) {
     TracePrintf(1, "KernelDelay() called, currPCB->pid = %d, clock_ticks = %d\n",  currPCB->pid, clock_ticks);
 	if (clock_ticks != 0) {
 		if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
+            TracePrintf(1, "ERROR: invalid: negative clock_ticks");
 			return ERROR;
 		}
 	}
@@ -185,5 +209,6 @@ int KernelReclaim(int id) {
 	if (getPipe(id) != NULL) return deletePipe(id);
 	
 	// the given id does not correspond to any sync object; return ERROR
+    TracePrintf(1, "ERROR: KernelReclaim id does not correspond to any sync object");
 	return ERROR;
 }

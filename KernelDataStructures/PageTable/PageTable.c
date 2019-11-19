@@ -1,5 +1,6 @@
 #include <hardware.h>
 #include <yalnix.h>
+#include "../../Kernel.h" 
 
 
 // TODO: return ERROR/0, and write to a struct pte **
@@ -39,7 +40,7 @@ int getVirtualAddr(struct pte *ptep) {
 
 
 // valid = 1 bit; prot = 3 bits; pfn = 24 bits
-void setPageTableEntry(struct pte * ptep, u_long valid, u_long prot, u_long pfn) {
+void setPageTableEntry(struct pte *ptep, u_long valid, u_long prot, u_long pfn) {
     ptep->valid = valid;
     ptep->prot = prot;
     ptep->pfn = pfn;
@@ -56,4 +57,36 @@ void invalidatePageTableEntry(struct pte *ptep) {
 		int virtualAddr = getVirtualAddr(ptep);
 		WriteRegister(REG_TLB_FLUSH, (unsigned int) virtualAddr);
 	}
+}
+
+int getAddressRegion(void *addr) {
+	int intAddr = (int) addr;
+	if (intAddr >= VMEM_1_BASE && intAddr < VMEM_1_LIMIT)
+		return 1;
+	else if (intAddr >= VMEM_0_BASE && intAddr < VMEM_0_LIMIT)
+		return 0;
+	else 
+		return -1;
+}
+
+int getAddressProt(void *addr, int region, u_long *prot) {
+	int baseVpn;
+	struct pte *ptBase;
+	if (region == 0) {
+		baseVpn = (VMEM_0_BASE>>PAGESHIFT); 
+		ptBase = (struct pte *) ReadRegister(REG_PTBR0);
+	}
+	else if (region == 1) {
+		baseVpn = (VMEM_1_BASE>>PAGESHIFT); 
+		ptBase = (struct pte *) ReadRegister(REG_PTBR1);
+	}
+	else {
+		return ERROR;
+	}
+	
+    int addrVpn = ((int) addr)>>PAGESHIFT;
+    struct pte *ptep = ptBase + addrVpn - baseVpn;
+	*prot = ptep->prot;
+
+	return SUCCESS;
 }
