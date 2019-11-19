@@ -198,8 +198,8 @@ void tickDownSleeper(void *arg, int key, void *sleeper) {
 			errorCount++;
 			return;
 		}
-	} else {
-		sleeperPCB->numRemainingDelayTicks--;
+	} else { 
+		(sleeperPCB->numRemainingDelayTicks)--;
 	}
 }
 
