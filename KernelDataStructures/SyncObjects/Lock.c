@@ -20,7 +20,7 @@ int initLock(int *lock_idp) {
 	}
 
 	// return ERROR if malloc'ing for the lock or the waitingQ fails
-    if (lockp->waitingQ = make_q() == NULL) return ERROR;
+    if ((lockp->waitingQ = make_q()) == NULL) return ERROR;
 
     lockp->ownerPcbp = NULL;
 
@@ -44,7 +44,7 @@ int deleteLock(int lock_id) {
 	}
 
 	// return ERROR if malloc'ing for the lock or the waitingQ fails
-    if (lockp->waitingQ = make_q() == NULL) return ERROR;
+    if ((lockp->waitingQ = make_q()) == NULL) return ERROR;
 	
 	// if it has an owner or some waiters, return ERROR;
 	if (lockp->ownerPcbp != NULL || peek_q(lockp->waitingQ) != NULL) {
