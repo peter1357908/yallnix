@@ -15,7 +15,10 @@ int KernelLockInit(int *lock_idp) {
 int KernelAcquire(int lock_id) {
 	// get the lock first
     lock_t *lockp = getLock(lock_id);
-    if (lockp == NULL) return ERROR;
+    if (lockp == NULL) {
+        TracePrintf(1, "KernelAcquire: lock %d is null\n", lock_id);
+        return ERROR;
+    } 
 	
     /* while the lock isn't free, mark the process as 
 	 * waiting and block it
@@ -38,11 +41,13 @@ int KernelAcquire(int lock_id) {
 int KernelRelease(int lock_id) { 
     // get the lock first
     lock_t *lockp = getLock(lock_id);
+
     // we COULD assume that currPCB is never NULL, but...
     if (lockp == NULL || \
 		lockp->ownerPcbp == NULL || \
 		lockp->ownerPcbp != currPCB || \
 		lockp->waitingQ == NULL) {
+        TracePrintf(1, "KernelAcquire: lock %d is null\n", lock_id);
 		return ERROR;
 	}
 	

@@ -37,9 +37,11 @@ int nextSyncId;
 
 /* --------- the following are for initialization --------- */
 
-// the initialized process will be enqueued in readyQ
-int initProcess(PCB_t **pcb);
+// initializes a PCB and save it in the given pcbpp
+int initPCB(PCB_t **pcbpp);
 
+// calls initPCB & places process in readyQ
+int initProcess(PCB_t **pcbpp);
 
 // a special case of initProcess, only used for... the Init process.
 int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp);
@@ -91,7 +93,7 @@ int execProcess(void);
  * currently blocks the parent and runs the child process next (TOTHINK: this
  * behavior also depends on forkTo(); do we really want to switch to child?)
  */
-int forkProcess(int pid);
+int forkProcess(PCB_t *childPCB);
 
 
 /* returns ERROR/0; moves the current process into its parent's zombieQ and runs another 

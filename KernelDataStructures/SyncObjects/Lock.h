@@ -19,7 +19,7 @@ typedef struct lock {
 HashMap_t *lockMap;
 
 // used in Kernel.c
-void initLockMap(void);
+int initLockMap(void);
 
 /*  return ERROR/SUCCESS; initializes lock and saves
     lock_id to lock_idp. 

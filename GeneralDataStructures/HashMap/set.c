@@ -53,6 +53,7 @@ set_insert(set_t *set, int key, void *item)
 	
 		if (node == NULL) {
 			// error allocating memory for node; return ERROR
+			TracePrintf(1, "set_insert: error allocating memory for node");
 			return ERROR;
 		} else {
 			// the key doesn't exist, and node is allocated - fill it up.
@@ -67,6 +68,7 @@ set_insert(set_t *set, int key, void *item)
 	}
 
 	// return ERROR if any of the parameter is NULL
+	TracePrintf(1, "set_insert: some paramater is null\n");
 	return ERROR;
 }
 
@@ -98,9 +100,15 @@ set_iterate(set_t *set, void *arg, void (*itemfunc)(void *arg, int key, void *it
 {
 	if (set != NULL && itemfunc != NULL) {
 		// call itemfunc with arg, on each item
-		setnode_t * node;
-		for (node = set->head; node != NULL; node = node->next) {
-		(*itemfunc)(arg, node->key, node->item); 
+		setnode_t *node;
+		setnode_t *next;
+		for (node = set->head; node != NULL; ) {
+			/* keep track of the next item in case the node gets
+			 * deleted during itemfunc()
+			 */
+			next = node->next;
+			(*itemfunc)(arg, node->key, node->item);
+			node = next;
 		}
 	}
 }

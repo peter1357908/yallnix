@@ -40,6 +40,9 @@ void *set_find(set_t *set, int key);
 /* Iterates over all items in the set, in undefined order.
  * Calls the given function on each item, with (arg, key, item).
  * If set==NULL or itemfunc==NULL, does nothing.
+ *
+ * tolerates node deletion during iteration if synchronized
+ * (i.e. itemfunc may call set_remove to remove the current node)
  */
 void set_iterate(set_t *set, void *arg,
 		 void (*itemfunc)(void *arg, int key, void *item) );

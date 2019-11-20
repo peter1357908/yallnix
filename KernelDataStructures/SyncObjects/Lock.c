@@ -7,17 +7,23 @@
 
 #define LOCK_MAP_HASH_BUCKETS 50
 
-void initLockMap() {
+int initLockMap() {
     lockMap = HashMap_new(LOCK_MAP_HASH_BUCKETS);
+	if (lockMap == NULL) return ERROR;
+	return SUCCESS;
 }
 
 int initLock(int *lock_idp) {
     lock_t *lockp = (lock_t *) malloc(sizeof(lock_t));
 	
-	// return ERROR if malloc'ing for the lock or the waitingQ fails
-    if (lockp == NULL || (lockp->waitingQ = make_q()) == NULL) {
+	if (lockp == NULL) {
+		TracePrintf(1, "initLock: malloc failed for lock");
 		return ERROR;
 	}
+
+	// return ERROR if malloc'ing for the lock or the waitingQ fails
+    if ((lockp->waitingQ = make_q()) == NULL) return ERROR;
+
     lockp->ownerPcbp = NULL;
 
     // get an ID for the lock and increment the sync object count
@@ -33,9 +39,14 @@ lock_t *getLock(int lock_id) {
 
 int deleteLock(int lock_id) {
 	lock_t *lockp = (lock_t *) HashMap_remove(lockMap, lock_id);
-	
-	// if the lock or its waitingQ is NULL, return ERROR
-	if (lockp == NULL || lockp->waitingQ == NULL) return ERROR;
+
+	if (lockp == NULL) {
+		TracePrintf(1, "deleteLock: lock is null");
+		return ERROR;
+	}
+
+	// return ERROR if malloc'ing for the lock or the waitingQ fails
+    if ((lockp->waitingQ = make_q()) == NULL) return ERROR;
 	
 	// if it has an owner or some waiters, return ERROR;
 	if (lockp->ownerPcbp != NULL || peek_q(lockp->waitingQ) != NULL) {

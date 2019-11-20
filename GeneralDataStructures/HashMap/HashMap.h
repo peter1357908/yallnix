@@ -31,6 +31,9 @@ void *HashMap_find(HashMap_t *hm, int key);
 /* Iterate over all items in the table; in undefined order.
  * Call the given function on each item, with (arg, key, item).
  * If hm==NULL or itemfunc==NULL, do nothing.
+ *
+ * tolerates node deletion during iteration if synchronized
+ * (i.e. itemfunc may call HashMap_remove to remove the current node)
  */
 void HashMap_iterate(HashMap_t *hm, void *arg,
 		       void (*itemfunc)(void *arg, int key, void *item) );

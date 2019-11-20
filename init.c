@@ -2,10 +2,10 @@
 #include <hardware.h>
 #include <stdio.h>
 
-#define DELAY_LENGTH 5
-#define PARENT_DELAY_LENGTH 10
+#define DELAY_LENGTH 1
+#define PARENT_DELAY_LENGTH 5
 #define PARENT_EXIT_STATUS 20
-#define CHILD_DELAY_LENGTH 5
+#define CHILD_DELAY_LENGTH 1
 #define CHILD_EXIT_STATUS 30
 #define GRANDCHILD_DELAY_LENGTH 2
 #define GRANDCHILD_EXIT_STATUS 40
@@ -168,35 +168,44 @@ void main() {
 		TtyPrintf(0, "parent just read %d characters:\n%s\n", lenRead, buf);
 		free(buf);
 		
-		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);
-	}
-	
-	TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
+		TtyPrintf(0, "parent calling Wait(), rc = %d\n", Wait(&status));
+		TtyPrintf(0, "parent resumed from Wait(), child (pid = %d) status = %d\n", pid, status);
 		
-	TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
-	TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
+		TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
+			
+		TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
+		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
+		
+		TtyPrintf(0, "parent exiting with status code = %d...\n", PARENT_EXIT_STATUS);
+		Exit(PARENT_EXIT_STATUS);
+		
+	
+		TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
+		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
 
-	TtyPrintf(0, "parent calling Wait()\n");
-	Wait(&status);
+		TtyPrintf(0, "parent calling Wait()\n");
+		Wait(&status);
 
-	// NOTE: GRANDCHILD_DELAY_LENGTH must be < PARENT_DELAY_LENGTH for this test to be effective
-	TtyPrintf(0, "init now testing what happens when a parent exits before child\n we'll use child and grandchild...\n");
-	TtyPrintf(0, "parent calling Fork()...\n");
-	pid = Fork();
-	if (0 == pid) {
-		pid = GetPid();
-		TtyPrintf(0, "child (pid = %d) calling Delay(%d)\n", pid, CHILD_DELAY_LENGTH);
+		// NOTE: GRANDCHILD_DELAY_LENGTH must be < PARENT_DELAY_LENGTH for this test to be effective
+		TtyPrintf(0, "init now testing what happens when a parent exits before child\n we'll use child and grandchild...\n");
+		TtyPrintf(0, "parent calling Fork()...\n");
 		pid = Fork();
 		if (0 == pid) {
 			pid = GetPid();
-			Delay(GRANDCHILD_DELAY_LENGTH);
-			TtyPrintf(0, "grandchild (pid = %d) exiting\n", pid);
-			Exit(GRANDCHILD_EXIT_STATUS);
+			TtyPrintf(0, "child (pid = %d) calling Delay(%d)\n", pid, CHILD_DELAY_LENGTH);
+			pid = Fork();
+			if (0 == pid) {
+				pid = GetPid();
+				Delay(GRANDCHILD_DELAY_LENGTH);
+				TtyPrintf(0, "grandchild (pid = %d) exiting\n", pid);
+				Exit(GRANDCHILD_EXIT_STATUS);
+			}
+			TtyPrintf(0, "child (pid = %d) exiting\n", pid);
+			Exit(CHILD_EXIT_STATUS);
 		}
-		TtyPrintf(0, "child (pid = %d) exiting\n", pid);
-		Exit(CHILD_EXIT_STATUS);
+
+		Wait(&status);
+		Delay(PARENT_DELAY_LENGTH);
+		Exit(PARENT_EXIT_STATUS);
 	}
-	Wait(&status);
-	Delay(PARENT_DELAY_LENGTH);
-	Exit(PARENT_EXIT_STATUS);
 }

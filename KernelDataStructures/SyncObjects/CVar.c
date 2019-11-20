@@ -7,14 +7,19 @@
 
 #define CVAR_MAP_HASH_BUCKETS 50
 
-void initCvarMap() {
+int initCvarMap() {
     cvarMap = HashMap_new(CVAR_MAP_HASH_BUCKETS);
+	if (cvarMap == NULL) return ERROR;
+	return SUCCESS;
 }
 
 int initCvar(int *cvar_idp) {
     // initialize cvar (which is actually just a queue of PCB pointers)
     q_t *cvarQ = make_q();
-    if (cvarQ == NULL) return ERROR;
+    if (cvarQ == NULL) {
+		TracePrintf(1, "initCvar: make_q() failed & cvarQ is null");
+		return ERROR;
+	}
 	
 	*cvar_idp = nextSyncId++;
 
@@ -30,10 +35,16 @@ int deleteCvar(int cvar_id) {
 	q_t *cvarQ = (q_t *) HashMap_remove(cvarMap, cvar_id);
 	
 	// if the cvarQ is NULL, return ERROR
-	if (cvarQ == NULL) return ERROR;
+	if (cvarQ == NULL) {
+		TracePrintf(1, "deleteCvar: cvarQ is null");
+		return ERROR;
+	}
 	
 	// if it has some waiters, return ERROR;
-	if (peek_q(cvarQ) != NULL) return ERROR;
+	if (peek_q(cvarQ) != NULL) {
+		TracePrintf(1, "deleteCvar: cvarQ has waiters");
+		return ERROR;
+	}
 	
 	// otherwise, the cvar is safe to be deleted
 	delete_q(cvarQ, NULL);

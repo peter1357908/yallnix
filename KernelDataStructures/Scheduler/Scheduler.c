@@ -3,18 +3,24 @@
 #include <stdio.h>
 #include <string.h>
 #include "../../GeneralDataStructures/Queue/Queue.h"
+#include "../../GeneralDataStructures/HashMap/HashMap.h"
 #include "../PageTable/PageTable.h"
 #include "../FrameList/FrameList.h"
 #include "../../Kernel.h"
 #include "Scheduler.h"
 
+<<<<<<< HEAD
 #define CHILDREN_MAP_HASH_BUCKETS 50
+=======
+#define BLOCKED_MAP_HASH_BUCKETS 50
+#define SLEEPING_MAP_HASH_BUCKETS 50
+>>>>>>> 65a616e5fa6ad5976774d6f5860699e589dc7788
 
 /* ------ the following declarations are only visible to Scheduler ------ */
 int nextPid;
 q_t *readyQ;
-q_t *blockedQ;
-q_t *sleepingQ;
+HashMap_t *blockedMap;
+HashMap_t *sleepingMap;
 
 KernelContext *switchBetween(KernelContext *, void *, void *);
 KernelContext *forkTo(KernelContext *, void *, void *);
@@ -26,30 +32,32 @@ void removeParent(void *nil, int pid, void *childPCB);
 
 PCB_t *remove_process_q(q_t *, int);
 int tick_down_sleepers_q(void);
+void tickDownSleeper(void *, int, void *);
 
 PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
 q_t *transmittingQs[NUM_TERMINALS]; // processes waiting to transmit
 q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 
 
-
 /* ------ the following are for initialization ------ */
 
-int initProcess(PCB_t **pcb) {
-    PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
+int initPCB(PCB_t **pcbpp) {
+	PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (newPCB == NULL) {
+		TracePrintf(1, "initPCB: error malloc'ing PCB\n");
         return ERROR;
     }
 
     newPCB->pid = nextPid++;
     newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (newPCB->uctxt == NULL) {
+		TracePrintf(1, "initPCB: error malloc'ing UserContext\n");
         return ERROR;
     }
     newPCB->kctxt = NULL;
 	newPCB->parent = NULL;
 	newPCB->zombieQ = NULL;
-    newPCB->r1PageTable = initializeRegionPageTable();
+	initializeRegionPageTable(&(newPCB->r1PageTable));
     newPCB->numRemainingDelayTicks = 0;
 	newPCB->numChildren = 0;
 	newPCB->children = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
@@ -63,17 +71,20 @@ int initProcess(PCB_t **pcb) {
         (newPCB->stackPfns)[i] = pfn;
     }
 	
-    *pcb = newPCB;
-	
-	if (enq_q(readyQ, newPCB) == ERROR) return ERROR;
-	
+    *pcbpp = newPCB;
+	return SUCCESS;
+}
+
+int initProcess(PCB_t **pcbpp) { 
+	if (initPCB(pcbpp) == ERROR || enq_q(readyQ, *pcbpp) == ERROR) return ERROR;
     return SUCCESS;
 }
 
-
+// TODO: can probably modularize this more
 int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
     PCB_t *initPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (initPCB == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing PCB\n");
         return ERROR;
     }
 
@@ -82,6 +93,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 	
     initPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (initPCB->uctxt == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing UserContext\n");
         return ERROR;
     }
 	
@@ -90,6 +102,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 	 */
     initPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
 	if (initPCB->kctxt == NULL) {
+		TracePrintf(1, "initInitProcess: error malloc'ing KernelContext\n");
 		return ERROR;
 	}
 	
@@ -130,12 +143,13 @@ KernelContext *getStarterKernelState(KernelContext *currKctxt, void *nil0, void 
 int initScheduler() {
 	nextPid = 0;
 	nextSyncId = 0;
-	
+
 	if ((readyQ = make_q()) == NULL || \
-		(blockedQ = make_q()) == NULL || \
-		(sleepingQ = make_q()) == NULL) {
+		(blockedMap = HashMap_new(BLOCKED_MAP_HASH_BUCKETS)) == NULL || \
+		(sleepingMap = HashMap_new(SLEEPING_MAP_HASH_BUCKETS)) == NULL) {
 		return ERROR;
 	}
+	
 	
 	int i;
 	for (i = 0; i < NUM_TERMINALS; i++) {
@@ -152,32 +166,40 @@ int sleepProcess(int numRemainingDelayTicks) {
 	TracePrintf(1, "sleepProcess() called, currPCB->pid = %d, ticks = %d\n", currPCB->pid, numRemainingDelayTicks);
 	
 	if (numRemainingDelayTicks <= 0) {
-		TracePrintf(1, "sleepProcess() exiting with 0 because given non-positive ticks\n");
-		return 0;
+		TracePrintf(1, "sleepProcess: exiting with SUCCESS because given non-positive ticks\n");
+		return SUCCESS;
 	}
 	
 	currPCB->numRemainingDelayTicks = numRemainingDelayTicks;
-	
-	if (enq_q(sleepingQ, currPCB) == ERROR) return ERROR;
+
+	if (HashMap_insert(sleepingMap, currPCB->pid, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "sleepProcess: readyQ is empty\n");
+		return ERROR;
+	} 
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
-
 int tickDownSleepers(void) {
-	return tick_down_sleepers_q();
+	TracePrintf(1, "tickDownSleepers() called, currPCB->pid = %d\n",  currPCB->pid);
+	int errorCount = 0;
+	HashMap_iterate(sleepingMap, &errorCount, tickDownSleeper);
+	if (errorCount > 0) return ERROR;
+	return SUCCESS;
 }
-
 
 int kickProcess() {
 	TracePrintf(1, "kickProcess() called, currPCB->pid = %d\n",  currPCB->pid);
 	
 	// first make sure that the readyQ is not NULL
-	if (readyQ == NULL) return ERROR;
+	if (readyQ == NULL) {
+		TracePrintf(1, "kickProcess: readyQ is null\n");
+		return ERROR;
+	}
 	
 	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
 	if (peek_q(readyQ) == NULL) {
@@ -189,42 +211,10 @@ int kickProcess() {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
-	
-	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
-}
-
-int runProcess(int pid) {
-	TracePrintf(1, "runProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
-	
-	if (pid == currPCB->pid) {
-		TracePrintf(1, "runProcess() exiting with 0 because (pid == currPCB->pid)\n");
-		return SUCCESS;
+	if (nextPCB == NULL) { 
+		TracePrintf(1, "kickProcess: readyQ is empty\n");
+		return ERROR;
 	}
-	
-	// first make sure that the readyQ is not NULL
-	if (readyQ == NULL) return ERROR;
-	
-	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
-	if (peek_q(readyQ) == NULL) {
-		TracePrintf(1, "runProcess() exiting with 0 because readyQ is empty\n");
-		return 0;
-	}
-	
-	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
-	
-	PCB_t *nextPCB = remove_process_q(readyQ, pid);
-	
-	/* nextPCB being NULL may mean that the target process is not ready yet,
-	 * so we try to run something else instead.
-	 */
-	if (nextPCB == NULL) {
-		nextPCB = (PCB_t *) deq_q(readyQ);
-		
-		// somehow we still got NULL - something horrible happened
-		if (nextPCB == NULL) return ERROR;
-	}
-	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
 
@@ -234,23 +224,17 @@ int execProcess() {
 }
 
 
-int forkProcess(int pid) {
-	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
-	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
-	
-	/* TOTHINK: at least for fork(), there is no point to enq_q() into the readyQ
-	 * only to get pulled back out here...
-	 */
-	PCB_t *childPCB = remove_process_q(readyQ, pid);
-	
-	/* if we can't find the child in the readyQ, or that the child we found is 
-	 * actually not a child of the current process... then we have a problem.
-	 */
+int forkProcess(PCB_t *childPCB) {
+	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, childPCB->pid = %d\n",  currPCB->pid, childPCB->pid);
 	if (childPCB == NULL || \
 		childPCB->parent == NULL || \
 		childPCB->parent->pid != currPCB->pid) {
+		TracePrintf(1, "forkProcess: childPCB is null or has bad parameters\n");
 		return ERROR;
 	}
+	
+	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+	
 	return KernelContextSwitch(forkTo, NULL, childPCB);
 }
 
@@ -282,18 +266,25 @@ int exitProcess(int exit_status) {
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "exitProcess: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, NULL, nextPCB);
 }
 
 int blockProcess(void) {
 	TracePrintf(1, "blockProcess() called, currPCB->pid = %d\n",  currPCB->pid);
-	if (enq_q(blockedQ, currPCB) == ERROR) return ERROR;
+
+	if (HashMap_insert(blockedMap, currPCB->pid, currPCB) == ERROR) return ERROR;
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockProcess: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -301,12 +292,16 @@ int blockProcess(void) {
 
 int unblockProcess(int pid) {
 	TracePrintf(1, "unblockProcess() called, currPCB->pid = %d, pid = %d\n",  currPCB->pid, pid);
-	// first test if the queue is NULL (fatal error)
-	if (blockedQ == NULL) return ERROR;
+
+	// first test if the map is NULL (fatal error)
+	if (blockedMap == NULL) {
+		TracePrintf(1, "unblockProcess: blockedMap is null\n");
+		return ERROR;
+	}
 	
-	PCB_t *unblockedPCB = remove_process_q(blockedQ, pid);
+	PCB_t *unblockedPCB =  (PCB_t *) HashMap_remove(blockedMap, pid); 
 	
-	/* since we made sure the queue is not NULL, if unblockedPCB is NULL,
+	/* since we made sure the HashMap is not NULL, if unblockedPCB is NULL,
 	 * then it just isn't blocked. Not an error (imagine multiple children,
 	 * upon exiting, each tries to unblock a waiting parent even though
 	 * the parent only waited for one).
@@ -336,7 +331,10 @@ int blockTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockTransmitter: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -350,7 +348,10 @@ int unblockTransmitter(int tty_id) {
 	q_t *transmittingQ = transmittingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
-	if (transmittingQ == NULL) return ERROR;
+	if (transmittingQ == NULL) {
+		TracePrintf(1, "unblockTransmitter: fatal error: transmittingQ is null\n");
+		return ERROR;
+	}
 
 	PCB_t *unblockedPCB = (PCB_t *) deq_q(transmittingQ);
 
@@ -369,7 +370,10 @@ int waitTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "waitTransmitter: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -380,7 +384,10 @@ int signalTransmitter(int tty_id) {
 
 	PCB_t *nextPCB = currTransmitters[tty_id];
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "signalTransmitter: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -393,7 +400,10 @@ int blockReader(int tty_id) {
 
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
 	
-	if (nextPCB == NULL) return ERROR;
+	if (nextPCB == NULL) {
+		TracePrintf(1, "blockReader: readyQ is empty\n");
+		return ERROR;
+	}
 	
 	return KernelContextSwitch(switchBetween, currPCB, nextPCB);
 }
@@ -403,7 +413,10 @@ int unblockReader(int tty_id) {
 	q_t *readingQ = readingQs[tty_id];
 	
 	// first test if the queue is NULL (fatal error)
-	if (readingQ == NULL) return ERROR;
+	if (readingQ == NULL) {
+		TracePrintf(1, "unblockReader: fatal error: readyQ is null\n");
+		return ERROR;
+	}
 
 	PCB_t *unblockedPCB = (PCB_t *) deq_q(readingQ);
 
@@ -577,133 +590,38 @@ void delete_process(void *pcbp_item) {
 	free(pcbp);
 }
 
-
-/* -------- scheduler-specific queue operations -------- */
-
-/* this function treats the queue as a linked list and removes
- * a PCB based on the given pid; return NULL if no PCB with the
- * given pid is found, or if the queue is NULL.
+/* errorCountp is an integer pointer; used in tickDownSleepers as
+ * function to iterate over the sleepingMap, decrementing each sleeper's
+ * numRemainingDelayTicks.
  */
-PCB_t *remove_process_q(q_t *queue, int pid) {
-	if (queue == NULL) return NULL;
-	qnode_t *currNode = queue->head;
-	if (currNode == NULL) return NULL;
-
-	// checks the head first
-	PCB_t *pcbp;
-	if (((PCB_t *) (currNode->item))->pid == pid) {
-		// removing head, similar to deq_q
-		pcbp = (PCB_t *) (currNode->item);
-		qnode_t *new_head = currNode->node_behind;
-		free(currNode);
-		queue->head = new_head;
-		// if now the queue is empty...
-		if (new_head == NULL) {
-			queue->tail = NULL;
+void tickDownSleeper(void *errorCountp, int key, void *sleeper) {
+	PCB_t *sleeperPCB = (PCB_t *) sleeper;
+	TracePrintf(1, "tickDownSleeper called; errorCount = %d, key pid = %d, sleeper's pid = %d,  called\n", *((int *)errorCountp), key, sleeperPCB->pid);
+	
+	// tick down the sleeper...
+	sleeperPCB->numRemainingDelayTicks--;
+	
+	/* 	if remaining ticks <= 0, move to readyQ and remove from
+		sleepingMap; we SHOULD only be dealing with non-negative
+		ticks, since sleepProcess() ensures that the PCBs that
+		enter the sleepingMap have numRemainingDelayTicks > 0.
+	*/
+	if (sleeperPCB->numRemainingDelayTicks <= 0) {
+		/* TOTHINK: removing a HashMap node while iterating through it is bad practice,
+		 * though the HashMap module has been updated to tolerate this behavior.
+		 * Maybe a special data structure should be made for sleepingQ, since multiple
+		 * processes might wake up in one tick-down iteration...
+		 *
+		 * This is cleaner than the original tick_down_sleepers_q, but also less
+		 * efficient (remove is linear-time!).
+		 */
+		if (HashMap_remove(sleepingMap, sleeperPCB->pid) == NULL || \
+			enq_q(readyQ, sleeperPCB) == ERROR) {
+			// back to an integer pointer and then dereferenced...
+			(*((int *)errorCountp))++;
+			return;
 		}
-		return pcbp;
 	}
-	
-	// start checking each node_behind
-	qnode_t *node_behind = currNode->node_behind;			
-	while (node_behind != NULL) {
-		// if the target PCB is found, remove and free the node before breaking
-		if (((PCB_t *) (node_behind->item))->pid == pid) {
-			pcbp = (PCB_t *) (node_behind->item);
-			qnode_t *node_doubly_behind = node_behind->node_behind;
-			free(node_behind);
-			currNode->node_behind = node_doubly_behind;
-			// if we just removed the tail of the queue...
-			if (node_doubly_behind == NULL) {
-				queue->tail = currNode;
-			}
-			return pcbp;
-		}
-		// else, advance to the next node behind...
-		currNode = node_behind;
-		node_behind = node_behind->node_behind;
-	}
-	
-	// no PCB found matching the pid, return NULL
-	return NULL;
-}
-
-
-/* similar to remove_process_q but messier, because multiple
- * nodes can be removed in one tick_down_sleepers_q() call.
- */
-int tick_down_sleepers_q() {
-	TracePrintf(1, "tick_down_sleepers_q() called, currPCB->pid = %d\n", currPCB->pid);
-	if (sleepingQ == NULL) return ERROR;
-	qnode_t *currNode = sleepingQ->head;
-	if (currNode == NULL) return 0;
-	
-	PCB_t *pcbp = (PCB_t *) (currNode->item);
-	(pcbp->numRemainingDelayTicks)--;
-	TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
-	
-	// keep removing heads; if no ticks remain, move the current pcbp to readyQ
-	while (pcbp->numRemainingDelayTicks <= 0) {
-		TracePrintf(1, "Sleeper whose pid = %d is waking up during head removal\n", pcbp->pid);
-		
-		// remove the current head from sleepingQ
-		qnode_t *new_head = currNode->node_behind;
-		free(currNode);		
-		// and enqueue it to readyQ
-		enq_q(readyQ, pcbp);
-		
-		sleepingQ->head = new_head;
-		// if now the queue is empty...
-		if (new_head == NULL) {
-			sleepingQ->tail = NULL;
-			return 0;
-		}
-		
-		// the queue is not empty yet, next iteration starts here
-		currNode = new_head;
-		pcbp = (PCB_t *) (currNode->item);
-		(pcbp->numRemainingDelayTicks)--;
-		TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
-	}
-	
-	
-	// start checking each node_behind
-	qnode_t *node_behind = currNode->node_behind;
-	qnode_t *node_doubly_behind;
-	while (node_behind != NULL) {
-		node_doubly_behind = node_behind->node_behind;
-		pcbp = (PCB_t *) (node_behind->item);
-		(pcbp->numRemainingDelayTicks)--;
-		TracePrintf(1, "Sleeper whose pid = %d ticked down to %d during non-head ticking\n", pcbp->pid, pcbp->numRemainingDelayTicks);
-		
-		// if no ticks remain, move the current pcbp to readyQ
-		if (pcbp->numRemainingDelayTicks <= 0) {
-			TracePrintf(1, "Sleeper whose pid = %d is waking up during non-head removal\n", pcbp->pid);
-
-			free(node_behind);
-			enq_q(readyQ, pcbp);
-			
-			currNode->node_behind = node_doubly_behind;
-			// if we just removed the tail of the queue...
-			if (node_doubly_behind == NULL) {
-				sleepingQ->tail = currNode;
-				return 0;
-			}
-			
-			/* if the node removed was not the tail of the queue...
-			 * currNode is unchanged, since we removed the node_behind;
-			 */
-			node_behind = node_doubly_behind;
-			continue;
-			
-		}
-		
-		// if we didn't remove a node, the currNode is now the node_behind		
-		currNode = node_behind;
-		node_behind = node_doubly_behind;
-	}
-	
-	return 0;
 }
 
 void removeParent(void *nil, int pid, void *childPCB) {

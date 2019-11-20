@@ -15,25 +15,27 @@ int KernelPipeRead(int pipe_id, void *buf, int len){
 	TracePrintf(1, "Kernel_PipeRead() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
 	
 	if (len < 0) {
-		TracePrintf(1, "the given len is negative, returning with ERROR\n");
+		TracePrintf(1, "KernelPipeRead: the given len is negative, returning with ERROR\n");
 		return ERROR;
 	}
 	if (len == 0) {
-		TracePrintf(1, "the given len is 0, returning with 0\n");
+		TracePrintf(1, "KernelPipeRead: the given len is 0, returning with 0\n");
 		return SUCCESS;
 	}
 	
 	pipe_t *pipep = getPipe(pipe_id);
 	if (pipep == NULL) {
-		TracePrintf(1, "getPipe(%d) returned NULL, returning with ERROR\n", pipe_id);
+		TracePrintf(1, "KernelPipeRead: getPipe(%d) returned NULL, returning with ERROR\n", pipe_id);
 		return ERROR;
 	}
 	
 	q_t *waitingQ = pipep->waitingQ;
 	
 	// first ensure that the queue itself exists
-	if (waitingQ == NULL) return ERROR;
-	
+	if (waitingQ == NULL) {
+		TracePrintf(1, "KernelPipeRead: waitingQ is null\n");
+		return ERROR;
+	}
 	// then, enqueue the current process
 	// TOTHINK: better semantics here?
 	if (enq_q(waitingQ, currPCB) == ERROR) return ERROR;
@@ -87,21 +89,21 @@ int KernelPipeWrite(int pipe_id, void *buf, int len){
 	TracePrintf(1, "Kernel_PipeWrite() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
 	
 	if (len < 0) {
-		TracePrintf(1, "the given len is negative, returning with ERROR\n");
+		TracePrintf(1, "KernelPipeWrite: the given len is negative, returning with ERROR\n");
 		return ERROR;
 	}
 	if (len == 0) {
-		TracePrintf(1, "the given len is 0, returning with 0\n");
+		TracePrintf(1, "KernelPipeWrite: the given len is 0, returning with 0\n");
 		return SUCCESS;
 	}
 	
 	pipe_t *pipep = getPipe(pipe_id);
 	if (pipep == NULL) {
-		TracePrintf(1, "getPipe(%d) returned NULL, returning with ERROR\n", pipe_id);
+		TracePrintf(1, "KernelPipeWrite: getPipe(%d) returned NULL, returning with ERROR\n", pipe_id);
 		return ERROR;
 	}
 	if (pipep->numBytesWritten + len > PIPE_MAX_BYTES) {
-		TracePrintf(1, "trying to write more than the buffer can hold (written = %d, len = %d, PIPE_MAX_BYTES = %d), returning with ERROR\n", pipep->numBytesWritten, len, PIPE_MAX_BYTES);
+		TracePrintf(1, "KernelPipeWrite: trying to write more than the buffer can hold (written = %d, len = %d, PIPE_MAX_BYTES = %d), returning with ERROR\n", pipep->numBytesWritten, len, PIPE_MAX_BYTES);
 		return ERROR;
 	}
 	

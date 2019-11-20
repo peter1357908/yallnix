@@ -3,6 +3,7 @@
 #include <string.h>
 #include "../KernelDataStructures/Scheduler/Scheduler.h"
 #include "../KernelDataStructures/FrameList/FrameList.h"
+#include "../KernelDataStructures/PageTable/PageTable.h"
 #include "../KernelDataStructures/SyncObjects/Lock.h"
 #include "../KernelDataStructures/SyncObjects/CVar.h"
 #include "../KernelDataStructures/SyncObjects/Pipe.h"
@@ -15,7 +16,7 @@ int KernelFork(void) {
     PCB_t *parentPCB = currPCB;
     PCB_t *childPCB;  
 
-    if (initProcess(&childPCB) == ERROR) return ERROR;
+    if (initPCB(&childPCB) == ERROR) return ERROR;
 
     childPCB->kctxt = (KernelContext *) malloc(sizeof(KernelContext));
     memmove(childPCB->uctxt, parentPCB->uctxt, sizeof(UserContext));
@@ -32,24 +33,25 @@ int KernelFork(void) {
     u_long pfn; 
     struct pte *currParentPte = parentPCB->r1PageTable;
     struct pte *currChildPte = childPCB->r1PageTable;
-    for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
-        if (currParentPte->valid == 1) {
-            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+	
+	for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
+		if (currParentPte->valid == 1) {
+			if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
 			/* NOTE: unlike LoadProgram(), we don't have to worry about the stack
 			 * being READ|EXEC, because we copy via the tempPte manipulation
 			 */
-			 
-			// set tempPte's pfn to currChildPte's pfn
-            setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
-            /* copy from parent v-addr to temp v-addr
-               this should copy parent's memory contents to child's memory
-            */
-            memmove(tempVAddr, (void *) addr, PAGESIZE);
 			
-            setPageTableEntry(currChildPte, 1, currParentPte->prot, pfn);
+			// set tempPte's pfn to currChildPte's pfn
+			setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
+			/* copy from parent v-addr to temp v-addr
+				this should copy parent's memory contents to child's memory
+			*/
+			memmove(tempVAddr, (void *) addr, PAGESIZE);
+			
+			setPageTableEntryNoFlush(currChildPte, 1, currParentPte->prot, pfn);
         }
 		
-        currParentPte++;
+		currParentPte++;
 		currChildPte++;
     }
 	
@@ -62,7 +64,7 @@ int KernelFork(void) {
     HashMap_insert(parentPCB->children, childPCB->pid, childPCB);
     (parentPCB->numChildren)++; 
     
-    if (forkProcess(childPCB->pid) == ERROR) return ERROR;
+    if (forkProcess(childPCB) == ERROR) return ERROR;
 	
 	TracePrintf(1, "Inside KernelFork(), after forkProcess(), currPCB->pid = %d\n",  currPCB->pid);
 
@@ -73,6 +75,7 @@ int KernelFork(void) {
         return SUCCESS;
     }
     else {
+        TracePrintf(1, "KernelFork: resuming with a process that's neither the child or the parent! Returning ERROR\n");
         return ERROR;
     }
 }
@@ -108,8 +111,23 @@ void KernelExit(int status) {
 
 int KernelWait(int *status_ptr) {
 	TracePrintf(1, "KernelWait() called, currPCB->pid = %d\n",  currPCB->pid);
-    if (currPCB->numChildren <= 0) 
+    int region = getAddressRegion(status_ptr);
+    if (region != 1) {
+        TracePrintf(1, "KernelWait: status_ptr not in region 1\n");
+        return ERROR; 
+    } 
+    
+    u_long prot;
+	// the prot must be exactly READ|WRITE
+    if (getAddressProt(status_ptr, 1, &prot) == ERROR || prot != (PROT_READ | PROT_WRITE)) {
+            TracePrintf(1, "KernelWait: status_ptr not READ|WRITE\n");
+            return ERROR;
+    }
+    if (currPCB->numChildren <= 0) {
+        TracePrintf(1, "KernelWait: no children to wait for\n");
         return ERROR;
+	}
+	
 	// if the parent has no exited children yet, block the parent...
     if (peek_q(currPCB->zombieQ) == NULL) {
         if (blockProcess() == ERROR) {
@@ -119,7 +137,7 @@ int KernelWait(int *status_ptr) {
     // ** process is now running & zombieQueue has children ** 
     zombie_t *childZombiep = deq_q(currPCB->zombieQ);
 	if (childZombiep == NULL) {
-		TracePrintf(1, "KernelWait() is returning with ERROR because currPCB (pid = %d) should be a parent unblocked from Wait(), but dequeuing its zombieQ somehow returned NULL\n", currPCB->pid);
+		TracePrintf(1, "KernelWait: is returning with ERROR because currPCB (pid = %d) should be a parent unblocked from Wait(), but dequeuing its zombieQ somehow returned NULL\n", currPCB->pid);
 		return ERROR;
 	}
 	
@@ -140,6 +158,12 @@ int KernelGetPid() {
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
     TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
+    int region = getAddressRegion(addr);
+    if (region != 1) {
+        TracePrintf(1, "KernelBrk: addr not in region 1\n");
+        return ERROR; 
+    }
+
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;
     struct pte *targetPtep;
@@ -176,8 +200,12 @@ int KernelBrk(void *addr) {
 int KernelDelay(int clock_ticks) {
     TracePrintf(1, "KernelDelay() called, currPCB->pid = %d, clock_ticks = %d\n",  currPCB->pid, clock_ticks);
 	if (clock_ticks != 0) {
-		if (clock_ticks < 0 || sleepProcess(clock_ticks) == ERROR) {
+		if (clock_ticks < 0) {
+            TracePrintf(1, "KernelDelay: negative clock_ticks\n");
 			return ERROR;
+        } 
+        if (sleepProcess(clock_ticks) == ERROR) {
+            return ERROR;
 		}
 	}
     // scheduler should grab another ready process & context switch into it
@@ -195,5 +223,6 @@ int KernelReclaim(int id) {
 	if (getPipe(id) != NULL) return deletePipe(id);
 	
 	// the given id does not correspond to any sync object; return ERROR
+    TracePrintf(1, "KernelReclaim: id does not correspond to any sync object\n");
 	return ERROR;
 }

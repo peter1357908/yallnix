@@ -1,6 +1,7 @@
 #include <hardware.h>
 #include <yalnix.h>
 #include <string.h>
+#include <stdlib.h>  // malloc
 #include "TrapHandlers/TrapHandlers.h"
 #include "KernelDataStructures/PageTable/PageTable.h"
 #include "KernelDataStructures/FrameList/FrameList.h"
@@ -39,12 +40,14 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
     WriteRegister(REG_VECTOR_BASE, (unsigned int) interruptVectorArray);
 	
 	// initialize the general r0PageTable (whose stack is for "init")
-	struct pte *r0PageTable = initializeRegionPageTable();
+	struct pte *r0PageTable;
+	if (initializeRegionPageTable(&r0PageTable) == ERROR) Halt();
 	
 	/* initialize an r1PageTable so we can enable VM; that page table will be
 	 * for the first ever process to run (i.e. "init")
 	 */
-	struct pte *initR1PageTable = initializeRegionPageTable();
+	struct pte *initR1PageTable;
+	if (initializeRegionPageTable(&initR1PageTable) == ERROR) Halt();
 	
 	/* initialize FrameList; must happen after the pagetables are initialized,
 	 * and before the r0PageTable is filled.
@@ -81,7 +84,8 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 			continue;
 		}
 		
-		setPageTableEntry(currentPte, 1, prot, (addr>>PAGESHIFT));
+		// since it's pre-VM, we don't need to flush the MMU
+		setPageTableEntryNoFlush(currentPte, 1, prot, (addr>>PAGESHIFT));
 		currentPte++;
 	}
 	
@@ -99,16 +103,12 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 	tempVAddr =  (void *) (KERNEL_STACK_BASE - PAGESIZE);
 
 	// initialize ttyBuffers
-	initBuffers();
-
-	// initialize lockMap
-	initLockMap();
-
-	// initialize cvarMap
-	initCvarMap();
-	
-	// initialize pipeMap
-	initPipeMap();
+	if (initBuffers() == ERROR || \
+		initLockMap() == ERROR || \
+		initCvarMap() == ERROR || \
+		initPipeMap() == ERROR) {
+		Halt();
+	}
 	
 	/* initialization logic: "init" requires special initialization because
 	 * its kernel stack is the same as the current kernel stack, and its
@@ -177,6 +177,7 @@ int SetKernelBrk(void *addr) {
 	
 	// if it were to grow into the kernel stack, return ERROR
 	if ((int) addr >= KERNEL_STACK_BASE) {
+		TracePrintf(1, "SetKernelBrk: addr grows into kernel stack\n");
 		return ERROR;
 	}
 	
