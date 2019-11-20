@@ -167,10 +167,9 @@ void main() {
 		TtyPrintf(0, "parent just read %d characters:\n%s\n", lenRead, buf);
 		free(buf);
 		
-		TtyPrintf(0, "parent calling Wait()\n");
-		Wait(&status);
+		TtyPrintf(0, "parent calling Wait(), rc = %d\n", Wait(&status));
 		
-		TtyPrintf(0, "child (pid = %d) status = %d\n", pid, status);
+		TtyPrintf(0, "parent resumed from Wait(), child (pid = %d) status = %d\n", pid, status);
 		
 		TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
 			

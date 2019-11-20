@@ -215,14 +215,15 @@ int execProcess() {
 
 int forkProcess(PCB_t *childPCB) {
 	TracePrintf(1, "forkProcess() called, currPCB->pid = %d, childPCB->pid = %d\n",  currPCB->pid, childPCB->pid);
-	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
-	
 	if (childPCB == NULL || \
 		childPCB->parent == NULL || \
 		childPCB->parent->pid != currPCB->pid) {
 		TracePrintf(1, "forkProcess: childPCB is null or has bad parameters\n");
 		return ERROR;
 	}
+	
+	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
+	
 	return KernelContextSwitch(forkTo, NULL, childPCB);
 }
 

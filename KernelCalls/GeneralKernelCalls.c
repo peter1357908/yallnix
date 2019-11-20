@@ -33,24 +33,24 @@ int KernelFork(void) {
     struct pte *currParentPte = parentPCB->r1PageTable;
     struct pte *currChildPte = childPCB->r1PageTable;
 	
-    for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
-        if (currParentPte->valid == 1) {
-            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+	for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
+		if (currParentPte->valid == 1) {
+			if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
 			/* NOTE: unlike LoadProgram(), we don't have to worry about the stack
 			 * being READ|EXEC, because we copy via the tempPte manipulation
 			 */
-			 
-			// set tempPte's pfn to currChildPte's pfn
-            setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
-            /* copy from parent v-addr to temp v-addr
-               this should copy parent's memory contents to child's memory
-            */
-            memmove(tempVAddr, (void *) addr, PAGESIZE);
 			
-            setPageTableEntryNoFlush(currChildPte, 1, currParentPte->prot, pfn);
+			// set tempPte's pfn to currChildPte's pfn
+			setPageTableEntry(tempPtep, 1, PROT_WRITE, pfn);
+			/* copy from parent v-addr to temp v-addr
+				this should copy parent's memory contents to child's memory
+			*/
+			memmove(tempVAddr, (void *) addr, PAGESIZE);
+			
+			setPageTableEntryNoFlush(currChildPte, 1, currParentPte->prot, pfn);
         }
 		
-        currParentPte++;
+		currParentPte++;
 		currChildPte++;
     }
 	
@@ -73,7 +73,7 @@ int KernelFork(void) {
         return SUCCESS;
     }
     else {
-        TracePrintf(1, "KernelFork: fatal error after forking\n");
+        TracePrintf(1, "KernelFork: resuming with a process that's neither the child or the parent! Returning ERROR\n");
         return ERROR;
     }
 }
@@ -108,16 +108,16 @@ int KernelWait(int *status_ptr) {
     } 
     
     u_long prot;
-	// the bitwise operator is for when the prot bits may include EXEC
-    if (getAddressProt(status_ptr, region, &prot) == ERROR || \
-        (prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)) {
+	// the prot must be exactly READ|WRITE
+    if (getAddressProt(status_ptr, 1, &prot) == ERROR || prot != (PROT_READ | PROT_WRITE)) {
             TracePrintf(1, "KernelWait: status_ptr not READ|WRITE\n");
             return ERROR;
     }
-    if (currPCB->numChildren <= 0) 
+    if (currPCB->numChildren <= 0) {
         TracePrintf(1, "KernelWait: no children to wait for\n");
         return ERROR;
-
+	}
+	
 	// if the parent has no exited children yet, block the parent...
     if (peek_q(currPCB->zombieQ) == NULL) {
         if (blockProcess() == ERROR) {

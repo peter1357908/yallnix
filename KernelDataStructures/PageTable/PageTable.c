@@ -50,7 +50,7 @@ int getVirtualAddr(struct pte *ptep) {
 		TracePrintf(1, "getVirtualAddr: invalid virtual address\n");
 		return ERROR;
 	}
-	TracePrintf(1, "returning %d\n", vpn<<PAGESHIFT);
+	TracePrintf(2, "returning %d\n", vpn<<PAGESHIFT);
 	return vpn<<PAGESHIFT;
 }
 
@@ -89,7 +89,7 @@ void invalidatePageTableEntry(struct pte *ptep) {
 }
 
 int getAddressRegion(void *addr) {
-	int intAddr = (int) addr;
+	unsigned int intAddr = (unsigned int) addr;
 	if (intAddr >= VMEM_1_BASE && intAddr < VMEM_1_LIMIT)
 		return 1;
 	else if (intAddr >= VMEM_0_BASE && intAddr < VMEM_0_LIMIT)
