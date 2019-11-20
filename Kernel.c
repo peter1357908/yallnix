@@ -180,28 +180,53 @@ int SetKernelBrk(void *addr) {
 		TracePrintf(1, "SetKernelBrk: addr grows into kernel stack\n");
 		return ERROR;
 	}
+
+	int region = getAddressRegion(addr);
+    if (region != 0) {
+        TracePrintf(1, "SetKernelBrk: addr not in region 0\n");
+        return ERROR; 
+	}
 	
-	// update page table if we're in virtual memory mode
-	if (isVM == 1) {
+	/* 	only update page table if VM is enabled 
+		and addr & currKernelBrk are in different pages
+	*/
+	if (isVM == 1 && (((int) addr>>PAGESHIFT) != ((int) currKernelBrk>>PAGESHIFT))) {
 		struct pte *r0PageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte *targetPtep;
 		int currAddr;
+		int vpn;
 		int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
 
 		// if addr lower than currKernelBrk, invalidate pages and free frames accordingly
 		if ((int) addr < (int) currKernelBrk) {
-			for (currAddr = (int) addr; currAddr < (int) currKernelBrk; currAddr += PAGESIZE) {
-				int vpn = (currAddr>>PAGESHIFT);
-				targetPtep = r0PageTable + vpn - vpn0;
+			
+			// get vpn & ptep of addr (the new brk)
+			vpn = (((int) addr)>>PAGESHIFT);
+			targetPtep = r0PageTable + vpn - vpn0;
+			
+			/*	we only want to free the page containing addr if if addr is at the bottom 
+				of the page. So, if targetPtep->pfn equals add (addr is at the bottom of its own page),
+				we want to invalidate pages starting with addr's page. Otherwise, we want to invalidate
+				pages starting with the following page.
+			*/
+			if (targetPtep->pfn == (int) addr) 
+				currAddr = (int) addr;
+			else
+				currAddr = ((int) addr) + PAGESIZE;
+			
+			while (currAddr < (int) currKernelBrk) {
 				freeFrame(FrameList, numFrames, targetPtep->pfn);
 				invalidatePageTableEntry(targetPtep);
+				vpn = (currAddr>>PAGESHIFT);
+				targetPtep = r0PageTable + vpn - vpn0;
+				currAddr += PAGESIZE;
 			}
 		}
 	
 		// if addr higher than currKernelBrk, validate pages and allocate frames accordingly
 		else if ((int) addr > (int) currKernelBrk) {
 			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
-				int vpn = (currAddr>>PAGESHIFT);
+				vpn = (currAddr>>PAGESHIFT);
 				u_long pfn;
 				if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
 				targetPtep = r0PageTable + vpn - vpn0;
