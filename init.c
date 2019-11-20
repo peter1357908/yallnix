@@ -29,9 +29,9 @@ void main() {
 
 	// UNCOMMENT TO RUN TEST FILE
 
-	// TtyPrintf(0, "init running %s", FORK_TEST);
-	// char *forkArgs[] = {FORK_TEST, NULL};
-	// Exec(FORK_TEST, forkArgs);
+	TtyPrintf(0, "init running %s", FORK_TEST);
+	char *forkArgs[] = {FORK_TEST, NULL};
+	Exec(FORK_TEST, forkArgs);
 
 	// TtyPrintf(0, "init running %s", ZERO_TEST);
 	// char *zeroArgs[] = {ZERO_TEST, NULL};
