@@ -156,67 +156,109 @@ int KernelGetPid() {
     return currPCB->pid;
 }
 
-// assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
-    
     TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
+	
+	/* only care about if the future brk is in region 1 (we do not care
+	 * if it will grow into the user stack or lower into the user data)
+	 */
     int region = getAddressRegion(addr);
     if (region != 1) {
         TracePrintf(1, "KernelBrk: addr not in region 1\n");
         return ERROR; 
     }
 
-    void *brk = currPCB->brk;
+    void *currBrk = currPCB->brk;
+	
+	unsigned int addr_ui = (unsigned int) addr;
+	unsigned int currBrk_ui = (unsigned int) currBrk;
+	unsigned int addrVpn = addr_ui>>PAGESHIFT;
+	unsigned int currBrkVpn = currBrk_ui>>PAGESHIFT;
+	
+	struct pte *r1PageTable = currPCB->r1PageTable;
+	struct pte *targetPtep;
+	unsigned int currVpn;
 
-    /*  only update page table if addr & brk are in
-        different pages
-    */
-    if (((int) addr>>PAGESHIFT) != ((int) brk>>PAGESHIFT)) {
-
-        struct pte *r1BasePtep = currPCB->r1PageTable;
-        struct pte *targetPtep;
-        int currAddr;
-        int vpn;
-        int vpn1 = (VMEM_1_BASE>>PAGESHIFT); // first page in VMEM_0
-
-        if ((int) addr < (int) currKernelBrk) {
-			
-			// get vpn & ptep of addr (the new brk)
-			vpn = (((int) addr)>>PAGESHIFT);
-			targetPtep = r1BasePtep + vpn - vpn1;
-			
-			/*	we only want to free the page containing addr if if addr is at the bottom 
-				of the page. So, if targetPtep->pfn equals add (addr is at the bottom of its own page),
-				we want to invalidate pages starting with addr's page. Otherwise, we want to invalidate
-				pages starting with the following page.
-			*/
-			if (targetPtep->pfn == (int) addr) 
-				currAddr = (int) addr;
-			else
-				currAddr = ((int) addr) + PAGESIZE;
-			
-			while (currAddr < (int) currKernelBrk) {
-				freeFrame(FrameList, numFrames, targetPtep->pfn);
-				invalidatePageTableEntry(targetPtep);
-				vpn = (currAddr>>PAGESHIFT);
-				targetPtep = r1BasePtep + vpn - vpn1;
-				currAddr += PAGESIZE;
-			}
+	/* if addr's page is in a lower page than currBrk, 
+	 * invalidate pages and free frames accordingly
+	 */
+	if (addrVpn < currBrkVpn) {
+		/*	we only want to free the page containing addr if addr 
+			is at the bottom of the page. If so, we want to invalidate 
+			pages starting with addr's page. Otherwise, we want to 
+			invalidate pages starting with the following page.
+		*/
+		if (DOWN_TO_PAGE(addr_ui) == addr_ui) { 
+			currVpn = addrVpn;
 		}
+		else {
+			currVpn = addrVpn + 1;
+		}
+		/* Also, we don't want to invalidate the page the currBrk is in
+		 * if it's already invalid (currBrk at the beginning of a page)
+		 */
+		if (DOWN_TO_PAGE(currBrk_ui) == currBrk_ui) {
+			currBrkVpn--;  // so the upcoming loop terminates one iteration earlier
+		}
+		
+		targetPtep = r1PageTable + currVpn - USER_BASE_VPN;
+		while (currVpn <= currBrkVpn) {
+			freeFrame(FrameList, numFrames, targetPtep->pfn);
+			invalidatePageTableEntry(targetPtep);
+			
+			currVpn++;
+			targetPtep++;
+		}
+	}
 
-        // if addr higher than brk, validate pages and allocate frames accordingly
-       else if ((int) addr > (int) brk) {
-            for (currAddr = (int) brk; currAddr < (int) addr; currAddr += PAGESIZE) {
-                vpn = (currAddr>>PAGESHIFT);
-                u_long pfn;
-                if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
-                targetPtep = r1BasePtep + vpn - vpn1;
-
-                // TODO: fix this line
-                setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
-            }
-        }
-    }
+	// if addr is in the same page... it depends...
+	else if (addrVpn == currBrkVpn) {
+		/* if addr is lower, then we need to invalidate the page if
+		 * addr is at the beginning of the page
+		 */ 
+		if (addr_ui < currBrk_ui && DOWN_TO_PAGE(addr_ui) == addr_ui) {
+			targetPtep = r1PageTable + addrVpn - USER_BASE_VPN;
+			freeFrame(FrameList, numFrames, targetPtep->pfn);
+			invalidatePageTableEntry(targetPtep);
+		}
+		/* if addr is higher, then we need to validate the page if brk was
+		 * at the beginning of the page
+		 */
+		else if (addr_ui > currBrk_ui && DOWN_TO_PAGE(currBrk_ui) == currBrk_ui) {
+			u_long pfn;
+			targetPtep = r1PageTable + addrVpn - USER_BASE_VPN;
+			if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+			setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+		}
+		// if addr is the same as the currBrk, nothing happens.
+	}
+	
+	// if addr is in a higher page...
+	else {
+		// similarly, we don't want to re-allocate an existing page...
+		if (DOWN_TO_PAGE(currBrk_ui) == currBrk_ui) { 
+			currVpn = currBrkVpn;
+		}
+		else {
+			currVpn = currBrkVpn + 1;
+		}
+		/* Also, we don't want to validate another page if addr is at
+		 * the beginning of a page...
+		 */
+		if (DOWN_TO_PAGE(addr_ui) == addr_ui) {
+			addrVpn--;  // so the upcoming loop terminates one iteration earlier
+		}
+		
+		u_long pfn;
+		targetPtep = r1PageTable + currVpn - USER_BASE_VPN;
+		while (currVpn <= addrVpn) {
+			if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+			setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+			
+			currVpn++;
+			targetPtep++;
+		}
+	}
 
     currPCB->brk = addr;
     return SUCCESS;

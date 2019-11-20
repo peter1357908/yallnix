@@ -13,11 +13,17 @@
 #include "LoadProgram.h"
 #include "Kernel.h"
 
+// for kernel module
+void *kernelDataStart;
+void *kernelDataEnd;  // the lowest address above kernel data
+void *currKernelBrk;
+
 // create the Interrupt Vector Array globally (instead of inside KernelStart)
 void *interruptVectorArray[TRAP_VECTOR_SIZE];
 
 void SetKernelData(void *_KernelDataStart, void *_KernelDataEnd) {
 	kernelDataStart = _KernelDataStart;
+	kernelDataEnd = _KernelDataEnd;
 	currKernelBrk = _KernelDataEnd;  // _KernelDataEnd is the lowest address NOT in use
 }
 
@@ -176,63 +182,113 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 
 int SetKernelBrk(void *addr) {
 	unsigned int isVM = ReadRegister(REG_VM_ENABLE);
+	unsigned int addr_ui = (unsigned int) addr;
+	unsigned int currKernelBrk_ui = (unsigned int) currKernelBrk;
+	
+	/* no need to test which region it is in because we bound the brk
+	 * between the kernel stack and the kernel data:
+	 */
 	
 	// if it were to grow into the kernel stack, return ERROR
-	if ((int) addr >= KERNEL_STACK_BASE) {
-		TracePrintf(1, "SetKernelBrk: addr grows into kernel stack\n");
+	if (addr_ui >= KERNEL_STACK_BASE) {
+		TracePrintf(1, "SetKernelBrk: addr trying to grow into kernel stack; return ERROR\n");
+		return ERROR;
+	}
+	
+	// if it were to lower into the kernel data, return ERROR
+	if (addr_ui < (unsigned long) kernelDataEnd) {
+		TracePrintf(1, "SetKernelBrk: addr trying to lower into kernel data; return ERROR\n");
 		return ERROR;
 	}
 
-	int region = getAddressRegion(addr);
-    if (region != 0) {
-        TracePrintf(1, "SetKernelBrk: addr not in region 0\n");
-        return ERROR; 
-	}
 	
-	/* 	only update page table if VM is enabled 
-		and addr & currKernelBrk are in different pages
-	*/
-	if (isVM == 1 && (((int) addr>>PAGESHIFT) != ((int) currKernelBrk>>PAGESHIFT))) {
+	// only attempt to update page table if VM is enabled
+	if (isVM == 1) {
+		unsigned int addrVpn = addr_ui>>PAGESHIFT;
+		unsigned int currKernelBrkVpn = currKernelBrk_ui>>PAGESHIFT;
+		
 		struct pte *r0PageTable = (struct pte *) ReadRegister(REG_PTBR0);
 		struct pte *targetPtep;
-		int currAddr;
-		int vpn;
-		int vpn0 = (VMEM_0_BASE>>PAGESHIFT); // first page in VMEM_0
+		unsigned int currVpn;
 
-		// if addr lower than currKernelBrk, invalidate pages and free frames accordingly
-		if ((int) addr < (int) currKernelBrk) {
-			
-			// get vpn & ptep of addr (the new brk)
-			vpn = (((int) addr)>>PAGESHIFT);
-			targetPtep = r0PageTable + vpn - vpn0;
-			
-			/*	we only want to free the page containing addr if if addr is at the bottom 
-				of the page. So, if targetPtep->pfn equals add (addr is at the bottom of its own page),
-				we want to invalidate pages starting with addr's page. Otherwise, we want to invalidate
-				pages starting with the following page.
+		/* if addr's page is in a lower page than currKernelBrk, 
+		 * invalidate pages and free frames accordingly
+		 */
+		if (addrVpn < currKernelBrkVpn) {
+			/*	we only want to free the page containing addr if addr 
+				is at the bottom of the page. If so, we want to invalidate 
+				pages starting with addr's page. Otherwise, we want to 
+				invalidate pages starting with the following page.
 			*/
-			if (targetPtep->pfn == (int) addr) 
-				currAddr = (int) addr;
-			else
-				currAddr = ((int) addr) + PAGESIZE;
+			if (DOWN_TO_PAGE(addr_ui) == addr_ui) { 
+				currVpn = addrVpn;
+			}
+			else {
+				currVpn = addrVpn + 1;
+			}
+			/* Also, we don't want to invalidate the page the currBrk is in
+			 * if it's already invalid (currBrk at the beginning of a page)
+			 */
+			if (DOWN_TO_PAGE(currKernelBrk_ui) == currKernelBrk_ui) {
+				currKernelBrkVpn--;  // so the upcoming loop terminates one iteration earlier
+			}
 			
-			while (currAddr < (int) currKernelBrk) {
+			targetPtep = r0PageTable + currVpn - KERNEL_BASE_VPN;
+			while (currVpn <= currKernelBrkVpn) {
 				freeFrame(FrameList, numFrames, targetPtep->pfn);
 				invalidatePageTableEntry(targetPtep);
-				vpn = (currAddr>>PAGESHIFT);
-				targetPtep = r0PageTable + vpn - vpn0;
-				currAddr += PAGESIZE;
+				
+				currVpn++;
+				targetPtep++;
 			}
 		}
 	
-		// if addr higher than currKernelBrk, validate pages and allocate frames accordingly
-		else if ((int) addr > (int) currKernelBrk) {
-			for (currAddr = (int) currKernelBrk; currAddr < (int) addr; currAddr += PAGESIZE) {
-				vpn = (currAddr>>PAGESHIFT);
+		// if addr is in the same page... it depends...
+		else if (addrVpn == currKernelBrkVpn) {
+			/* if addr is lower, then we need to invalidate the page if
+			 * addr is at the beginning of the page
+			 */ 
+			if (addr_ui < currKernelBrk_ui && DOWN_TO_PAGE(addr_ui) == addr_ui) {
+				targetPtep = r0PageTable + addrVpn - KERNEL_BASE_VPN;
+				freeFrame(FrameList, numFrames, targetPtep->pfn);
+				invalidatePageTableEntry(targetPtep);
+			}
+			/* if addr is higher, then we need to validate the page if brk was
+			 * at the beginning of the page
+			 */
+			else if (addr_ui > currKernelBrk_ui && DOWN_TO_PAGE(currKernelBrk_ui) == currKernelBrk_ui) {
 				u_long pfn;
+				targetPtep = r0PageTable + addrVpn - KERNEL_BASE_VPN;
 				if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
-				targetPtep = r0PageTable + vpn - vpn0;
 				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+			}
+			// if addr is the same as the currKernelBrk, nothing happens.
+		}
+		
+		// if addr is in a higher page...
+		else {
+			// similarly, we don't want to re-allocate an existing page...
+			if (DOWN_TO_PAGE(currKernelBrk_ui) == currKernelBrk_ui) { 
+				currVpn = currKernelBrkVpn;
+			}
+			else {
+				currVpn = currKernelBrkVpn + 1;
+			}
+			/* Also, we don't want to validate another page if addr is at
+			 * the beginning of a page...
+			 */
+			if (DOWN_TO_PAGE(addr_ui) == addr_ui) {
+				addrVpn--;  // so the upcoming loop terminates one iteration earlier
+			}
+			
+			u_long pfn;
+			targetPtep = r0PageTable + currVpn - KERNEL_BASE_VPN;
+			while (currVpn <= addrVpn) {
+				if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+				setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+				
+				currVpn++;
+				targetPtep++;
 			}
 		}
 	}

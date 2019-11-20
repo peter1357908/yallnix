@@ -17,10 +17,6 @@ KernelContext *starterKctxt;
 void *starterKernelStack;
 struct pte *r0StackBasePtep;
 
-// for kernel module
-void *kernelDataStart;
-void *currKernelBrk;
-
 // spare pte and the associated address, for manipulation in fork() and forkTo()
 struct pte *tempPtep;
 void *tempVAddr;

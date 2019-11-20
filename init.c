@@ -16,6 +16,7 @@
 #define GRANDCHILD_EXIT_STATUS (CHILD_EXIT_STATUS + 10)
 
 #define ORPHAN_TEST_GRANDCHILD_DELAY_LENGTH 3
+#define ORPHAN_TEST_PARENT_DELAY_LENGTH (ORPHAN_TEST_GRANDCHILD_DELAY_LENGTH + 2)
 #define ORPHAN_TEST_CHILD_EXIT_STATUS (CHILD_EXIT_STATUS + 5)
 #define ORPHAN_TEST_GRANDCHILD_EXIT_STATUS (GRANDCHILD_EXIT_STATUS + 5)
 
@@ -29,9 +30,9 @@ void main() {
 
 	// UNCOMMENT TO RUN TEST FILE
 
-	TtyPrintf(0, "init running %s", FORK_TEST);
-	char *forkArgs[] = {FORK_TEST, NULL};
-	Exec(FORK_TEST, forkArgs);
+	// TtyPrintf(0, "init running %s", FORK_TEST);
+	// char *forkArgs[] = {FORK_TEST, NULL};
+	// Exec(FORK_TEST, forkArgs);
 
 	// TtyPrintf(0, "init running %s", ZERO_TEST);
 	// char *zeroArgs[] = {ZERO_TEST, NULL};
@@ -195,7 +196,7 @@ void main() {
 				pid = GetPid();
 				TtyPrintf(0, "Orphan-test grandchild (pid = %d) calling Delay(%d) so orphan-test child can exit first\n", pid, ORPHAN_TEST_GRANDCHILD_DELAY_LENGTH);
 				Delay(ORPHAN_TEST_GRANDCHILD_DELAY_LENGTH);
-				TtyPrintf(0, "Orphan-test grandchild (pid = %d) exiting\n", pid);
+				TtyPrintf(0, "Orphan-test grandchild (pid = %d) exiting (if this line is printed, grandchild was not orphan-collected)\n", pid);
 				Exit(ORPHAN_TEST_GRANDCHILD_EXIT_STATUS);
 			}
 			TtyPrintf(0, "Orphan-test child (pid = %d) exiting immediately after Fork()\n", pid);
@@ -203,7 +204,9 @@ void main() {
 		}
 		TtyPrintf(0, "parent (pid = %d) calling Wait()\n", pid);
 		Wait(&status);
-		TtyPrintf(0, "parent (pid = %d) resumed from Wait(), exiting with status = %d\n", pid, PARENT_EXIT_STATUS);
+		TtyPrintf(0, "parent (pid = %d) resumed from Wait(); calling Delay(%d) so Yalnix doesn't halt until grandchild has a chance to resume.\n", pid, ORPHAN_TEST_PARENT_DELAY_LENGTH);
+		Delay(ORPHAN_TEST_PARENT_DELAY_LENGTH);
+		TtyPrintf(0, "parent (pid = %d) exiting with status = %d\n", pid, PARENT_EXIT_STATUS);
 		Exit(PARENT_EXIT_STATUS);
 	}
 }
