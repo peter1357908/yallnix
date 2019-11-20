@@ -174,17 +174,10 @@ void main() {
 		TtyPrintf(0, "parent calling Reclaim on the lock (%d, rc = %d), cvar (%d, rc = %d), and pipe (%d, rc = %d)\n", lock_id, Reclaim(lock_id), cvar_id, Reclaim(cvar_id), pipe_id, Reclaim(pipe_id));
 			
 		TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
-		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
-		
-		TtyPrintf(0, "parent exiting with status code = %d...\n", PARENT_EXIT_STATUS);
-		Exit(PARENT_EXIT_STATUS);
-		
+		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));	
 	
 		TtyPrintf(0, "now parent tries to acquire the lock %d again, and the return code should be %d\n", lock_id, ERROR);
 		TtyPrintf(0, "the return code is %d\n", Acquire(lock_id));
-
-		TtyPrintf(0, "parent calling Wait()\n");
-		Wait(&status);
 
 		// NOTE: GRANDCHILD_DELAY_LENGTH must be < PARENT_DELAY_LENGTH for this test to be effective
 		TtyPrintf(0, "init now testing what happens when a parent exits before child\n we'll use child and grandchild...\n");
@@ -204,8 +197,11 @@ void main() {
 			Exit(CHILD_EXIT_STATUS);
 		}
 
+		TtyPrintf(0, "parent calling Wait()\n");
 		Wait(&status);
+		TtyPrintf(0, "parent calling Delay(%d)\n", PARENT_DELAY_LENGTH);
 		Delay(PARENT_DELAY_LENGTH);
+		TtyPrintf(0, "parent exiting\n");
 		Exit(PARENT_EXIT_STATUS);
 	}
 }

@@ -9,12 +9,9 @@
 #include "../../Kernel.h"
 #include "Scheduler.h"
 
-<<<<<<< HEAD
 #define CHILDREN_MAP_HASH_BUCKETS 50
-=======
 #define BLOCKED_MAP_HASH_BUCKETS 50
 #define SLEEPING_MAP_HASH_BUCKETS 50
->>>>>>> 65a616e5fa6ad5976774d6f5860699e589dc7788
 
 /* ------ the following declarations are only visible to Scheduler ------ */
 int nextPid;
