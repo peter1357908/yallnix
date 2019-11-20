@@ -157,6 +157,7 @@ int KernelGetPid() {
 
 // assumes that brk was in correct position (e.g. below: valid; above: invalid, etc.)
 int KernelBrk(void *addr) {
+    
     TracePrintf(1, "KernelBrk() called, currPCB->pid = %d, addr = %x\n",  currPCB->pid, addr);
     int region = getAddressRegion(addr);
     if (region != 1) {
@@ -165,34 +166,57 @@ int KernelBrk(void *addr) {
     }
 
     void *brk = currPCB->brk;
-    struct pte *r1BasePtep = currPCB->r1PageTable;
-    struct pte *targetPtep;
-    int currAddr;
-    int vpn1 = (VMEM_1_BASE>>PAGESHIFT); // first page in VMEM_0
 
-    // if addr lower than brk, invalidate pages and free frames accordingly
-    if ((int) addr < (int) brk) {
-        for (currAddr = (int) addr; currAddr < (int) brk; currAddr += PAGESIZE) {
-            int vpn = (currAddr>>PAGESHIFT);
-            targetPtep = r1BasePtep + vpn - vpn1;
-            freeFrame(FrameList, numFrames, targetPtep->pfn);
-            invalidatePageTableEntry(targetPtep);
+    /*  only update page table if addr & brk are in
+        different pages
+    */
+    if (((int) addr>>PAGESHIFT) != ((int) brk>>PAGESHIFT)) {
+
+        struct pte *r1BasePtep = currPCB->r1PageTable;
+        struct pte *targetPtep;
+        int currAddr;
+        int vpn;
+        int vpn1 = (VMEM_1_BASE>>PAGESHIFT); // first page in VMEM_0
+
+        if ((int) addr < (int) currKernelBrk) {
+			
+			// get vpn & ptep of addr (the new brk)
+			vpn = (((int) addr)>>PAGESHIFT);
+			targetPtep = r1BasePtep + vpn - vpn1;
+			
+			/*	we only want to free the page containing addr if if addr is at the bottom 
+				of the page. So, if targetPtep->pfn equals add (addr is at the bottom of its own page),
+				we want to invalidate pages starting with addr's page. Otherwise, we want to invalidate
+				pages starting with the following page.
+			*/
+			if (targetPtep->pfn == (int) addr) 
+				currAddr = (int) addr;
+			else
+				currAddr = ((int) addr) + PAGESIZE;
+			
+			while (currAddr < (int) currKernelBrk) {
+				freeFrame(FrameList, numFrames, targetPtep->pfn);
+				invalidatePageTableEntry(targetPtep);
+				vpn = (currAddr>>PAGESHIFT);
+				targetPtep = r1BasePtep + vpn - vpn1;
+				currAddr += PAGESIZE;
+			}
+		}
+
+        // if addr higher than brk, validate pages and allocate frames accordingly
+       else if ((int) addr > (int) brk) {
+            for (currAddr = (int) brk; currAddr < (int) addr; currAddr += PAGESIZE) {
+                vpn = (currAddr>>PAGESHIFT);
+                u_long pfn;
+                if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
+                targetPtep = r1BasePtep + vpn - vpn1;
+
+                // TODO: fix this line
+                setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
+            }
         }
     }
 
-    // if addr higher than brk, validate pages and allocate frames accordingly
-    else {
-        for (currAddr = (int) brk; currAddr < (int) addr; currAddr += PAGESIZE) {
-            int vpn = (currAddr>>PAGESHIFT);
-            u_long pfn;
-            if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
-            targetPtep = r1BasePtep + vpn - vpn1;
-
-            // TODO: fix this line
-            setPageTableEntry(targetPtep, 1, (PROT_READ|PROT_WRITE), pfn);
-        }
-    }
-	
     currPCB->brk = addr;
     return SUCCESS;
 }
