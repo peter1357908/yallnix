@@ -2,11 +2,12 @@
 #include <hardware.h>
 #include <stdio.h>
 
-#define DELAY_LENGTH 2
-#define PARENT_DELAY_LENGTH 2
+#define DELAY_LENGTH 5
+#define PARENT_DELAY_LENGTH 10
 #define PARENT_EXIT_STATUS 20
-#define CHILD_DELAY_LENGTH 2
+#define CHILD_DELAY_LENGTH 5
 #define CHILD_EXIT_STATUS 30
+#define GRANDCHILD_DELAY_LENGTH 2
 #define GRANDCHILD_EXIT_STATUS 40
 #define MALLOC_SIZE 1024
 #define PIPE_READ_SIZE 20
@@ -177,7 +178,25 @@ void main() {
 
 	TtyPrintf(0, "parent calling Wait()\n");
 	Wait(&status);
-	
-	TtyPrintf(0, "parent exiting with status code = %d...\n", PARENT_EXIT_STATUS);
+
+	// NOTE: GRANDCHILD_DELAY_LENGTH must be < PARENT_DELAY_LENGTH for this test to be effective
+	TtyPrintf(0, "init now testing what happens when a parent exits before child\n we'll use child and grandchild...\n");
+	TtyPrintf(0, "parent calling Fork()...\n");
+	pid = Fork();
+	if (0 == pid) {
+		pid = GetPid();
+		TtyPrintf(0, "child (pid = %d) calling Delay(%d)\n", pid, CHILD_DELAY_LENGTH);
+		pid = Fork();
+		if (0 == pid) {
+			pid = GetPid();
+			Delay(GRANDCHILD_DELAY_LENGTH);
+			TtyPrintf(0, "grandchild (pid = %d) exiting\n", pid);
+			Exit(GRANDCHILD_EXIT_STATUS);
+		}
+		TtyPrintf(0, "child (pid = %d) exiting\n", pid);
+		Exit(CHILD_EXIT_STATUS);
+	}
+	Wait(&status);
+	Delay(PARENT_DELAY_LENGTH);
 	Exit(PARENT_EXIT_STATUS);
 }

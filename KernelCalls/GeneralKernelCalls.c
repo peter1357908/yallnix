@@ -6,6 +6,7 @@
 #include "../KernelDataStructures/SyncObjects/Lock.h"
 #include "../KernelDataStructures/SyncObjects/CVar.h"
 #include "../KernelDataStructures/SyncObjects/Pipe.h"
+#include "../GeneralDataStructures/HashMap/HashMap.h"
 #include "../LoadProgram.h"
 #include "../Kernel.h"
 
@@ -58,6 +59,7 @@ int KernelFork(void) {
     // NOTE: the Kernel Stack is copied over during the context switch
 
     childPCB->parent = parentPCB;
+    HashMap_insert(parentPCB->children, childPCB->pid, childPCB);
     (parentPCB->numChildren)++; 
     
     if (forkProcess(childPCB->pid) == ERROR) return ERROR;
