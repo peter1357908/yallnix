@@ -77,9 +77,17 @@ int KernelFork(void) {
 
 int KernelExec(char *filename, char **argvec) {
 	TracePrintf(1, "KernelExec() called, currPCB->pid = %d\n",  currPCB->pid);
-    if (LoadProgram(filename, argvec, currPCB) == ERROR || execProcess() == ERROR) {
+    int loadProgramStatus = LoadProgram(filename, argvec, currPCB);
+    
+    /*  if error occured in LoadProgram before we wiped our current process, return ERROR
+        or, if something goes wrong with execProcess(), return ERROR
+    */
+    if (loadProgramStatus == ERROR || execProcess() == ERROR) {
 		return ERROR;
 	}
+
+    // if error occured after LoadProgram wiped our current process, Halt()
+    if (loadProgramStatus == KILL) Halt();
 	
 	return SUCCESS;
 }
