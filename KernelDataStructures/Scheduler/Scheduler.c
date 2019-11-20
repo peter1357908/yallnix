@@ -9,6 +9,7 @@
 #include "../../Kernel.h"
 #include "Scheduler.h"
 
+#define CHILDREN_MAP_HASH_BUCKETS 50
 #define BLOCKED_MAP_HASH_BUCKETS 50
 #define SLEEPING_MAP_HASH_BUCKETS 50
 
@@ -23,6 +24,11 @@ KernelContext *forkTo(KernelContext *, void *, void *);
 KernelContext *execTo(KernelContext *, void *, void *);
 void free_zombie_t(void *);
 void delete_process(void *);
+
+void removeParent(void *nil, int pid, void *childPCB);
+
+PCB_t *remove_process_q(q_t *, int);
+int tick_down_sleepers_q(void);
 void tickDownSleeper(void *, int, void *);
 
 PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
@@ -46,11 +52,12 @@ int initPCB(PCB_t **pcbpp) {
         return ERROR;
     }
     newPCB->kctxt = NULL;
-    newPCB->numChildren = 0;
 	newPCB->parent = NULL;
 	newPCB->zombieQ = NULL;
 	initializeRegionPageTable(&(newPCB->r1PageTable));
     newPCB->numRemainingDelayTicks = 0;
+	newPCB->numChildren = 0;
+	newPCB->children = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
 
     int i;
     u_long pfn;
@@ -96,12 +103,13 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 		return ERROR;
 	}
 	
-    initPCB->numChildren = 0;
 	initPCB->parent = NULL;
 	initPCB->zombieQ = NULL;
     initPCB->r1PageTable = initR1PageTable;
     initPCB->numRemainingDelayTicks = 0;
-	
+	initPCB->numChildren = 0;
+	initPCB->children = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
+
 	// calculate r0StackBasePtep;
     struct pte *currPtep = r0StackBasePtep;
     
@@ -114,7 +122,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
 	// no need to enqueue, as "init" will become the currPCB in Kernel Start
 	*initPcbpp = initPCB;
 	
-    return 0;
+    return SUCCESS;
 }
 
 
@@ -148,7 +156,7 @@ int initScheduler() {
 		}
 	}
 	
-	return 0;
+	return SUCCESS;
 }
 
 int sleepProcess(int numRemainingDelayTicks) {
@@ -193,7 +201,7 @@ int kickProcess() {
 	// then, if we get NULL from peek_q, readyQ must be empty, so do nothing
 	if (peek_q(readyQ) == NULL) {
 		TracePrintf(1, "kickProcess() exiting with 0 because readyQ is empty\n");
-		return 0;
+		return SUCCESS;
 	}
 	
 	if (enq_q(readyQ, currPCB) == ERROR) return ERROR;
@@ -248,6 +256,9 @@ int exitProcess(int exit_status) {
 		unblockProcess(parentPcbp->pid);
 	}
 	
+	// remove reference to this process from childrens' PCBs
+	HashMap_iterate(currPCB->children, NULL, removeParent);
+
 	delete_process(currPCB);
 	
 	PCB_t *nextPCB = (PCB_t *) deq_q(readyQ);
@@ -259,7 +270,6 @@ int exitProcess(int exit_status) {
 	
 	return KernelContextSwitch(switchBetween, NULL, nextPCB);
 }
-
 
 int blockProcess(void) {
 	TracePrintf(1, "blockProcess() called, currPCB->pid = %d\n",  currPCB->pid);
@@ -609,4 +619,8 @@ void tickDownSleeper(void *errorCountp, int key, void *sleeper) {
 			return;
 		}
 	}
+}
+
+void removeParent(void *nil, int pid, void *childPCB) {
+	((PCB_t *) childPCB)->parent = NULL;
 }

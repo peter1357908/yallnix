@@ -7,12 +7,14 @@
 
 #include <hardware.h>
 #include "../../GeneralDataStructures/Queue/Queue.h"
+#include "../../GeneralDataStructures/HashMap/HashMap.h"
 
 typedef struct PCB {
     int pid;
     void *brk;
     UserContext *uctxt;
     KernelContext *kctxt;
+    HashMap_t *children;
     unsigned int numChildren;
     struct PCB *parent; // only using this for KernelExit/KernelWait
 	q_t *zombieQ;  // only used for KernelExit/KernelWait
