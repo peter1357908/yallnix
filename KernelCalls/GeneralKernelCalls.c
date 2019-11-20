@@ -8,6 +8,7 @@
 #include "../KernelDataStructures/SyncObjects/CVar.h"
 #include "../KernelDataStructures/SyncObjects/Pipe.h"
 #include "../GeneralDataStructures/HashMap/HashMap.h"
+#include "KernelCalls.h"  // KernelExit
 #include "../LoadProgram.h"
 #include "../Kernel.h"
 
@@ -61,7 +62,7 @@ int KernelFork(void) {
     // NOTE: the Kernel Stack is copied over during the context switch
 
     childPCB->parent = parentPCB;
-    HashMap_insert(parentPCB->children, childPCB->pid, childPCB);
+    HashMap_insert(parentPCB->childrenMap, childPCB->pid, childPCB);
     (parentPCB->numChildren)++; 
     
     if (forkProcess(childPCB) == ERROR) return ERROR;
@@ -83,24 +84,24 @@ int KernelFork(void) {
 int KernelExec(char *filename, char **argvec) {
 	TracePrintf(1, "KernelExec() called, currPCB->pid = %d\n",  currPCB->pid);
     int loadProgramStatus = LoadProgram(filename, argvec, currPCB);
-    
-    /*  if error occured in LoadProgram before we wiped our current process, return ERROR
-        or, if something goes wrong with execProcess(), return ERROR
-    */
+	
+	if (loadProgramStatus == KILL) {
+		TracePrintf(1, "KernelExec: LoadProgram returned KILL; calling KernelExit\n");
+		KernelExit(ERROR);
+		
+	}
     if (loadProgramStatus == ERROR || execProcess() == ERROR) {
+		TracePrintf(1, "KernelExec: LoadProgram or execProcess returned ERROR; returning ERROR\n");
 		return ERROR;
 	}
 
-    // if error occured after LoadProgram wiped our current process, Halt()
-    if (loadProgramStatus == KILL) Halt();
+    
 	
 	return SUCCESS;
 }
     
 void KernelExit(int status) {
 	TracePrintf(1, "KernelExit() called, currPCB->pid = %d, status = %d\n",  currPCB->pid, status);
-	// TOTHINK: can we just check the PCB pointers?
-	// TODO: wrap Halt() with free functions
 	if (currPCB->pid == initPid) {
 		TracePrintf(1, "init process exited; Calling Halt()...\n");
 		Halt();

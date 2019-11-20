@@ -5,7 +5,7 @@
 #include "../../Kernel.h" // for SUCCESS definition
 #include "Lock.h" // lock_t and lockMap
 
-#define LOCK_MAP_HASH_BUCKETS 50
+#define LOCK_MAP_HASH_BUCKETS 20
 
 int initLockMap() {
     lockMap = HashMap_new(LOCK_MAP_HASH_BUCKETS);

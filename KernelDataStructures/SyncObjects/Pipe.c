@@ -5,7 +5,7 @@
 #include "../../Kernel.h" // for SUCCESS definition
 #include "Pipe.h"  // PIPE_MAX_BYTES, pipe_t and pipeMap
 
-#define PIPE_MAP_HASH_BUCKETS 50
+#define PIPE_MAP_HASH_BUCKETS 20
 
 int initPipeMap() {
     pipeMap = HashMap_new(PIPE_MAP_HASH_BUCKETS);

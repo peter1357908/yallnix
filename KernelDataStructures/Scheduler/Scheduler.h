@@ -14,7 +14,7 @@ typedef struct PCB {
     void *brk;
     UserContext *uctxt;
     KernelContext *kctxt;
-    HashMap_t *children;
+    HashMap_t *childrenMap;
     unsigned int numChildren;
     struct PCB *parent; // only using this for KernelExit/KernelWait
 	q_t *zombieQ;  // only used for KernelExit/KernelWait

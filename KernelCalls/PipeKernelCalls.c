@@ -12,7 +12,7 @@ int KernelPipeInit(int *pipe_idp){
 }
 
 int KernelPipeRead(int pipe_id, void *buf, int len){
-	TracePrintf(1, "Kernel_PipeRead() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
+	TracePrintf(1, "KernelPipeRead() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
 	
 	if (len < 0) {
 		TracePrintf(1, "KernelPipeRead: the given len is negative, returning with ERROR\n");
@@ -33,7 +33,7 @@ int KernelPipeRead(int pipe_id, void *buf, int len){
 	
 	// first ensure that the queue itself exists
 	if (waitingQ == NULL) {
-		TracePrintf(1, "KernelPipeRead: waitingQ is null\n");
+		TracePrintf(1, "KernelPipeRead: waitingQ is NULL\n");
 		return ERROR;
 	}
 	// then, enqueue the current process
@@ -86,7 +86,7 @@ int KernelPipeRead(int pipe_id, void *buf, int len){
 
 
 int KernelPipeWrite(int pipe_id, void *buf, int len){
-	TracePrintf(1, "Kernel_PipeWrite() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
+	TracePrintf(1, "KernelPipeWrite() called; pipe_id = %d, buf = %x, len = %d\n", pipe_id, buf, len);
 	
 	if (len < 0) {
 		TracePrintf(1, "KernelPipeWrite: the given len is negative, returning with ERROR\n");

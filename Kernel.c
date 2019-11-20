@@ -137,7 +137,9 @@ void KernelStart(char *cmd_args[], unsigned int pmem_size, UserContext *uctxt) {
 		cmd_args = default_args;
 	}
 	
-	// be mindful that LoadProgram may return KILL; but as long as it's not SUCCESS...
+	/* LoadProgram may return KILL or ERROR; but since this program is init,
+	 * whether it's ERROR or KILL, we have to halt Yalnix.
+	 */
 	if (initInitProcess(initR1PageTable, &initPCB) == ERROR || LoadProgram(cmd_args[0], cmd_args, initPCB) != SUCCESS) {
 		Halt();
 	}

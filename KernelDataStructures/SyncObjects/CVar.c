@@ -5,7 +5,7 @@
 #include "../../Kernel.h" // for SUCCESS definition
 #include "Cvar.h"  // cvarMap
 
-#define CVAR_MAP_HASH_BUCKETS 50
+#define CVAR_MAP_HASH_BUCKETS 20
 
 int initCvarMap() {
     cvarMap = HashMap_new(CVAR_MAP_HASH_BUCKETS);

@@ -9,9 +9,9 @@
 #include "../../Kernel.h"
 #include "Scheduler.h"
 
-#define CHILDREN_MAP_HASH_BUCKETS 50
-#define BLOCKED_MAP_HASH_BUCKETS 50
-#define SLEEPING_MAP_HASH_BUCKETS 50
+#define CHILDREN_MAP_HASH_BUCKETS 10
+#define BLOCKED_MAP_HASH_BUCKETS 20
+#define SLEEPING_MAP_HASH_BUCKETS 20
 
 /* ------ the following declarations are only visible to Scheduler ------ */
 int nextPid;
@@ -24,11 +24,7 @@ KernelContext *forkTo(KernelContext *, void *, void *);
 KernelContext *execTo(KernelContext *, void *, void *);
 void free_zombie_t(void *);
 void delete_process(void *);
-
 void removeParent(void *nil, int pid, void *childPCB);
-
-PCB_t *remove_process_q(q_t *, int);
-int tick_down_sleepers_q(void);
 void tickDownSleeper(void *, int, void *);
 
 PCB_t *currTransmitters[NUM_TERMINALS]; // processes currently transmitting
@@ -49,20 +45,33 @@ int initPCB(PCB_t **pcbpp) {
     newPCB->uctxt = (UserContext *) malloc(sizeof(UserContext));
 	if (newPCB->uctxt == NULL) {
 		TracePrintf(1, "initPCB: error malloc'ing UserContext\n");
-        return ERROR;
+        delete_process(newPCB);
+		return ERROR;
     }
+	
+	newPCB->childrenMap = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
+	if (newPCB->childrenMap == NULL) {
+		TracePrintf(1, "initPCB: error malloc'ing childrenMap\n");
+		delete_process(newPCB);
+		return ERROR;
+	}
+	
     newPCB->kctxt = NULL;
 	newPCB->parent = NULL;
 	newPCB->zombieQ = NULL;
-	initializeRegionPageTable(&(newPCB->r1PageTable));
+	if (initializeRegionPageTable(&(newPCB->r1PageTable)) == ERROR) {
+		delete_process(newPCB);
+		return ERROR;
+	}
     newPCB->numRemainingDelayTicks = 0;
 	newPCB->numChildren = 0;
-	newPCB->children = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
+	
 
     int i;
     u_long pfn;
     for (i = 0; i < KERNEL_STACK_MAXSIZE / PAGESIZE; i++) {
         if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
+			delete_process(newPCB);
             return ERROR;
 	    }
         (newPCB->stackPfns)[i] = pfn;
@@ -77,7 +86,7 @@ int initProcess(PCB_t **pcbpp) {
     return SUCCESS;
 }
 
-// TODO: can probably modularize this more
+
 int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
     PCB_t *initPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (initPCB == NULL) {
@@ -108,7 +117,7 @@ int initInitProcess(struct pte *initR1PageTable, PCB_t **initPcbpp) {
     initPCB->r1PageTable = initR1PageTable;
     initPCB->numRemainingDelayTicks = 0;
 	initPCB->numChildren = 0;
-	initPCB->children = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
+	initPCB->childrenMap = HashMap_new(CHILDREN_MAP_HASH_BUCKETS);
 
 	// calculate r0StackBasePtep;
     struct pte *currPtep = r0StackBasePtep;
@@ -194,7 +203,7 @@ int kickProcess() {
 	
 	// first make sure that the readyQ is not NULL
 	if (readyQ == NULL) {
-		TracePrintf(1, "kickProcess: readyQ is null\n");
+		TracePrintf(1, "kickProcess: readyQ is NULL\n");
 		return ERROR;
 	}
 	
@@ -226,7 +235,7 @@ int forkProcess(PCB_t *childPCB) {
 	if (childPCB == NULL || \
 		childPCB->parent == NULL || \
 		childPCB->parent->pid != currPCB->pid) {
-		TracePrintf(1, "forkProcess: childPCB is null or has bad parameters\n");
+		TracePrintf(1, "forkProcess: childPCB is NULL or has bad parameters\n");
 		return ERROR;
 	}
 	
@@ -257,7 +266,7 @@ int exitProcess(int exit_status) {
 	}
 	
 	// remove reference to this process from childrens' PCBs
-	HashMap_iterate(currPCB->children, NULL, removeParent);
+	HashMap_iterate(currPCB->childrenMap, NULL, removeParent);
 
 	delete_process(currPCB);
 	
@@ -292,7 +301,7 @@ int unblockProcess(int pid) {
 
 	// first test if the map is NULL (fatal error)
 	if (blockedMap == NULL) {
-		TracePrintf(1, "unblockProcess: blockedMap is null\n");
+		TracePrintf(1, "unblockProcess: blockedMap is NULL\n");
 		return ERROR;
 	}
 	
@@ -346,7 +355,7 @@ int unblockTransmitter(int tty_id) {
 	
 	// first test if the queue is NULL (fatal error)
 	if (transmittingQ == NULL) {
-		TracePrintf(1, "unblockTransmitter: fatal error: transmittingQ is null\n");
+		TracePrintf(1, "unblockTransmitter: fatal error: transmittingQ is NULL\n");
 		return ERROR;
 	}
 
@@ -411,7 +420,7 @@ int unblockReader(int tty_id) {
 	
 	// first test if the queue is NULL (fatal error)
 	if (readingQ == NULL) {
-		TracePrintf(1, "unblockReader: fatal error: readyQ is null\n");
+		TracePrintf(1, "unblockReader: fatal error: readyQ is NULL\n");
 		return ERROR;
 	}
 
@@ -548,7 +557,7 @@ void free_zombie_t(void *zombiep_item) {
 
 
 /* delete_process() frees a PCB and all content within, including its uctxt,
- * kctxt, and r1PageTable. Also frees the allocated physical memory. Depends
+ * kctxt, r1PageTable, etc. Also frees the allocated physical memory. Depends
  * on the FrameList module. Assumes that the call is followed by a "currPcbP=NULL"
  * KernelContextSwitch, and thus does not flush the TLB.
  *
@@ -564,6 +573,7 @@ void delete_process(void *pcbp_item) {
 	PCB_t *pcbp = (PCB_t *) pcbp_item;
 	free(pcbp->uctxt);
 	free(pcbp->kctxt);
+	HashMap_delete(pcbp->childrenMap, NULL);
 	delete_q(pcbp->zombieQ, free_zombie_t);
 	
 	// free the frames in the r1PageTable, and then the r1PageTable
