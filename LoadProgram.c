@@ -330,13 +330,15 @@ void DoIdle() {
 
 int LoadIdle(PCB_t *idlePCB) {
 	/* mimics LoadProgram(); nothing will be actually written into the r1Stack,
-	 * so there is no need to swtich MMU registers.
+	 * so there is no need to switch MMU registers, and we must use
+	 * setPageTableEntryNoFlush() instead of setPageTableEntry()
 	 */
 	
 	struct pte *r1StackBasePtep = idlePCB->r1PageTable + MAX_PT_LEN - 1;
 	u_long r1StackBasePfn;
 	if (getFrame(FrameList, numFrames, &r1StackBasePfn) == ERROR) return ERROR;
-	setPageTableEntry(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, r1StackBasePfn);
+	
+	setPageTableEntryNoFlush(r1StackBasePtep, 1, PROT_READ|PROT_WRITE, r1StackBasePfn);
 
 	int size = 0;
 	int argcount = 0;

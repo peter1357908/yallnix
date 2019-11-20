@@ -12,7 +12,7 @@ HashMap_t *cvarMap;
 
 /* initialize CvarMap
 */
-void initCvarMap(void);
+int initCvarMap(void);
 
 /*  returns ERROR/SUCCESS; intializes cvar and saves
     cvar_id to cvar_idp

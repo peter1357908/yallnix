@@ -32,6 +32,7 @@ int KernelFork(void) {
     u_long pfn; 
     struct pte *currParentPte = parentPCB->r1PageTable;
     struct pte *currChildPte = childPCB->r1PageTable;
+	
     for (addr = VMEM_1_BASE; addr < VMEM_1_LIMIT; addr += PAGESIZE) {
         if (currParentPte->valid == 1) {
             if (getFrame(FrameList, numFrames, &pfn) == ERROR) return ERROR;
@@ -46,7 +47,7 @@ int KernelFork(void) {
             */
             memmove(tempVAddr, (void *) addr, PAGESIZE);
 			
-            setPageTableEntry(currChildPte, 1, currParentPte->prot, pfn);
+            setPageTableEntryNoFlush(currChildPte, 1, currParentPte->prot, pfn);
         }
 		
         currParentPte++;
@@ -107,8 +108,9 @@ int KernelWait(int *status_ptr) {
     } 
     
     u_long prot;
+	// the bitwise operator is for when the prot bits may include EXEC
     if (getAddressProt(status_ptr, region, &prot) == ERROR || \
-        prot != (PROT_READ | PROT_WRITE)) {
+        (prot & (PROT_READ | PROT_WRITE)) != (PROT_READ | PROT_WRITE)) {
             TracePrintf(1, "KernelWait: status_ptr not READ|WRITE\n");
             return ERROR;
     }
@@ -150,7 +152,7 @@ int KernelBrk(void *addr) {
     if (region != 1) {
         TracePrintf(1, "KernelBrk: addr not in region 1\n");
         return ERROR; 
-    } 
+    }
 
     void *brk = currPCB->brk;
     struct pte *r1BasePtep = currPCB->r1PageTable;

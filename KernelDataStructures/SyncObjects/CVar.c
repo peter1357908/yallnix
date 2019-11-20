@@ -7,8 +7,10 @@
 
 #define CVAR_MAP_HASH_BUCKETS 50
 
-void initCvarMap() {
+int initCvarMap() {
     cvarMap = HashMap_new(CVAR_MAP_HASH_BUCKETS);
+	if (cvarMap == NULL) return ERROR;
+	return SUCCESS;
 }
 
 int initCvar(int *cvar_idp) {

@@ -7,8 +7,10 @@
 
 #define PIPE_MAP_HASH_BUCKETS 50
 
-void initPipeMap() {
+int initPipeMap() {
     pipeMap = HashMap_new(PIPE_MAP_HASH_BUCKETS);
+	if (pipeMap == NULL) return ERROR;
+	return SUCCESS;
 }
 
 int initPipe(int *pipe_idp) {

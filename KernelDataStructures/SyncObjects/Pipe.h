@@ -25,7 +25,7 @@ typedef struct pipe {
 HashMap_t *pipeMap;
 
 // used in Kernel.c
-void initPipeMap(void);
+int initPipeMap(void);
 
 /*  return ERROR/SUCCESS; initializes lock and saves
     lock_id to lock_idp. 

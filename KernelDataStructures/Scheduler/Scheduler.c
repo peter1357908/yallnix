@@ -33,7 +33,7 @@ q_t *readingQs[NUM_TERMINALS]; // processes waiting to read
 /* ------ the following are for initialization ------ */
 
 int initPCB(PCB_t **pcbpp) {
-	 PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
+	PCB_t *newPCB = (PCB_t *) malloc(sizeof(PCB_t));
     if (newPCB == NULL) {
 		TracePrintf(1, "initPCB: error malloc'ing PCB\n");
         return ERROR;
@@ -49,7 +49,7 @@ int initPCB(PCB_t **pcbpp) {
     newPCB->numChildren = 0;
 	newPCB->parent = NULL;
 	newPCB->zombieQ = NULL;
-    newPCB->r1PageTable = initializeRegionPageTable();
+	initializeRegionPageTable(&(newPCB->r1PageTable));
     newPCB->numRemainingDelayTicks = 0;
 
     int i;
@@ -287,7 +287,7 @@ int unblockProcess(int pid) {
 	
 	PCB_t *unblockedPCB =  (PCB_t *) HashMap_remove(blockedMap, pid); 
 	
-	/* since we made sure the queue is not NULL, if unblockedPCB is NULL,
+	/* since we made sure the HashMap is not NULL, if unblockedPCB is NULL,
 	 * then it just isn't blocked. Not an error (imagine multiple children,
 	 * upon exiting, each tries to unblock a waiting parent even though
 	 * the parent only waited for one).

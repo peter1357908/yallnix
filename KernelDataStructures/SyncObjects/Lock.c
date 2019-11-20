@@ -7,8 +7,10 @@
 
 #define LOCK_MAP_HASH_BUCKETS 50
 
-void initLockMap() {
+int initLockMap() {
     lockMap = HashMap_new(LOCK_MAP_HASH_BUCKETS);
+	if (lockMap == NULL) return ERROR;
+	return SUCCESS;
 }
 
 int initLock(int *lock_idp) {
