@@ -1,35 +1,6 @@
 # Zac and Shengsong's Yalnix Operating System
 
-## Installation
-
-### Virtual Box image
-As mentioned, we've set up a VirtualBox image of a (pared-down) Linux with the right tools to build Yalnix. 
-
-Here the instructions:
-
-0. Install VirtualBox on your machine. (See https://www.virtualbox.org/wiki/Downloads (Links to an external site.).   Select the plain vanilla "platform package.")
-
-1. Use scp to download the VirtualBox appliance file, which lives in the CS NFS at
-
-/net/ifs-users/cs58/yalnix/vbox/cs58-F19-v1.ova
-
-(I recommend doing this via tethered network---the file over a gigabyte.)
-
-2. Import it into VirtualBox by selecting File -> Import Appliance and selecting the file. Proceed through the steps; defaults should work fine.
-
-3. Set up a shared folder seen by both your host machine and the VBox.
-
-Create the directory on your host
-Edit the settings for the virtual machine and go to "Shared Folders". Add a folder on your local machine that you want to share.
-Select the auto-mount option
-(When you run the virtual machine, browse to /media/. Your shared folder should appear there.  I like to make a symbolic link from that to the home directory.)
- Note: don't move your shared folder once you've attached it to the virtual box, because the virtual box looks for an absolute pathname. If you change the path of the folder, virtual box won't be able to find it.
-
-4. Boot your machine. The accounts are root/cs58root and cs58/cs58yalnix (userid/password); the network is shut down, for security reasons.
-
-5. A copy of the relevant yalnix files lives in /yalnix. In case we need to push out updates, you will need to install them manually.
-
-6. To work with Yalnix, put your source code in the shared folder, so you can edit it easily and work with git.  (However, note that VirtualBox does not want to dump core into a shared folder, so you might want to set up your Makefile so it grabs source from shared folders, but leaves the executable in a purely guest folder).
+Our project lives in master
 
 ## Usage
 
