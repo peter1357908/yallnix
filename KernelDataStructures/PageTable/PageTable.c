@@ -99,7 +99,7 @@ int getAddressRegion(void *addr) {
 }
 
 int getAddressProt(void *addr, int region, u_long *prot) {
-	int baseVpn;
+	unsigned int baseVpn;
 	struct pte *ptBase;
 	if (region == 0) {
 		baseVpn = KERNEL_BASE_VPN; 
@@ -114,7 +114,7 @@ int getAddressProt(void *addr, int region, u_long *prot) {
 		return ERROR;
 	}
 	
-    int addrVpn = ((int) addr)>>PAGESHIFT;
+    unsigned int addrVpn = ((int) addr)>>PAGESHIFT;
     struct pte *ptep = ptBase + addrVpn - baseVpn;
 	*prot = ptep->prot;
 

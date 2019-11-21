@@ -12,6 +12,66 @@
 #include "../LoadProgram.h"
 #include "../Kernel.h"
 
+/* utility function visible to KernelCalls module that checks 
+ * if all characters of a string have READ permission.
+ * return 1 (TRUE) if test passed; 0 (FALSE) otherwise.
+ *
+ * the sole point of this function is for robustness, not security
+ * (just so that we don't cause a bad memory access)
+ *
+ * see Yalnix Manual Page 43.
+ *
+ * can be easily tuned to return the length of the string, too...
+ */
+#define MAX_STRING_LENGTH TERMINAL_MAX_LINE
+int isValidString(char *string) {
+	if (string == NULL) {
+		TracePrintf(1, "isValidString: the given string is a NULL pointer, returning 0 (FALSE)\n");
+		return 0;
+	}
+	unsigned int basePageBase = DOWN_TO_PAGE(string);
+	unsigned int basePageVpn = basePageBase>>PAGESHIFT;
+	
+	unsigned int maxVpn;
+	struct pte *currPtep;
+	// get the page table entry for the base of the string
+	if (basePageVpn < MAX_PT_LEN) {
+		maxVpn = MAX_PT_LEN;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR0) + basePageVpn - KERNEL_BASE_VPN;
+	}
+	else if (basePageVpn < MAX_PT_LEN * 2) {
+		maxVpn = MAX_PT_LEN * 2;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR1) + basePageVpn - USER_BASE_VPN;
+	}
+	else {
+		TracePrintf(1, "isValidString: the string is not in the valid virtual address space; returning 0 (FALSE)\n");
+		return 0;
+	}
+	
+	// NOTE: cannot use UP_TO_PAGE for nextPageBase!
+	char *currCharp = string;  // pointer to current character
+	unsigned int nextPageBase = basePageBase + PAGESIZE;
+	unsigned int currVpn;
+	for (currVpn = basePageVpn; currVpn < maxVpn; currVpn++) {
+		// first check if the page is even valid and readable
+		if (currPtep->valid != 1 || \
+			(currPtep->prot & PROT_READ) != PROT_READ) {
+			TracePrintf(1, "isValidString: encountered a bad page (invalid or unREADable); returning 0 (FALSE)\n");
+			return 0;
+		}
+		// check for the terminating null until we run into the next page
+		while ((unsigned int) currCharp < nextPageBase) {
+			if (*currCharp == '\0') return 1;
+			currCharp++;
+		}
+		// increment the nextPageBase for the next iteration
+		nextPageBase += PAGESIZE;
+	}
+	
+	TracePrintf(1, "isValidString: the string is not null-terminated in the same region as its base; returning 0 (FALSE)\n");
+	return 0;
+}
+
 int KernelFork(void) {
 	TracePrintf(1, "KernelFork() called, currPCB->pid = %d\n",  currPCB->pid);
     PCB_t *parentPCB = currPCB;
@@ -83,6 +143,25 @@ int KernelFork(void) {
 
 int KernelExec(char *filename, char **argvec) {
 	TracePrintf(1, "KernelExec() called, currPCB->pid = %d\n",  currPCB->pid);
+	
+	// validate the input first. Check both the filename and the argvec.
+	if (isValidString(filename) == 0) {
+		TracePrintf(1, "KernelExec: input filename is not a valid string\n");
+		return ERROR;
+	}
+	
+	/* a similar part in LoadProgram assumes that the last element of the argvec
+	 * is a NULL... The following loop implicitly makes sure that it is 
+	 * (if it's not, we will keep going until running into an invalid string`)
+	 */
+	unsigned int i;
+	for (i = 0; argvec[i] != NULL; i++) {
+		if (isValidString(argvec[i]) == 0) {
+			TracePrintf(1, "KernelExec: the %d-th string in the input argvec is invalid\n", i);
+			return ERROR;
+		}
+	}
+
     int loadProgramStatus = LoadProgram(filename, argvec, currPCB);
 	
 	if (loadProgramStatus == KILL) {

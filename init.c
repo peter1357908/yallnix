@@ -28,23 +28,18 @@
 
 void main() {
 
-	// UNCOMMENT TO RUN TEST FILE
-
-	// TtyPrintf(0, "init running %s", FORK_TEST);
-	// char *forkArgs[] = {FORK_TEST, NULL};
-	// Exec(FORK_TEST, forkArgs);
-
-	// TtyPrintf(0, "init running %s", ZERO_TEST);
-	// char *zeroArgs[] = {ZERO_TEST, NULL};
-	// Exec(ZERO_TEST, zeroArgs);
-
-	// TtyPrintf(0, "init running %s", BIGSTACK_TEST);
-	// char *bigstackArgs[] = {BIGSTACK_TEST, NULL};
-	// Exec(BIGSTACK_TEST, bigstackArgs);
-
-	// TtyPrintf(0, "init running %s", TORTURE_TEST);
-	// char *tortureArgs[] = {TORTURE_TEST, NULL};
-	// Exec(TORTURE_TEST, tortureArgs);
+	/* --- UNCOMMENT TO RUN CORRESPONDING TEST FILE --- */
+	// char *fileName = FORK_TEST;
+	// char *fileName = TORTURE_TEST;
+	// char *fileName = ZERO_TEST;
+	// char *fileName = BIGSTACK_TEST;
+	
+	// char *args[] = {fileName, NULL};
+	// TtyPrintf(0, "init Exec()'ing into %s", fileName);
+	// Exec(fileName, args);
+	
+	
+	/* Run the following with EXEC_TEST if running none of the tests above */
 
 	TtyPrintf(0, "init calling GetPid()...\n");
 	int pid = GetPid();
