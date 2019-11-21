@@ -3,13 +3,14 @@
 Our project lives in master
 
 ## Usage
-
 To make all changed components: `make all`
 To remove all output (.o files, temp files, LOG files, TRACE, and yalnix): `make clean`
 To count: count and give info on source files: `make count`
 To list: list all c files and header files in current directory: `make list`
 To kill: close tty windows.  Useful if program crashes without closing tty windows: `make kill`
 To test: start yalnix with init and trace level 1: `make test`
+
+To run other tests (e.g. bigstack, forktest, torture, zero), go into `init.c` and uncomment the corresponding test file.
 
 ## General Design
 
