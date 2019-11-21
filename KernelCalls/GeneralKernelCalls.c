@@ -8,40 +8,76 @@
 #include "../KernelDataStructures/SyncObjects/CVar.h"
 #include "../KernelDataStructures/SyncObjects/Pipe.h"
 #include "../GeneralDataStructures/HashMap/HashMap.h"
-#include "KernelCalls.h"  // KernelExit
+#include "KernelCalls.h"
 #include "../LoadProgram.h"
 #include "../Kernel.h"
 
-/* utility function visible to KernelCalls module that checks 
- * if all characters of a string have READ permission.
- * return 1 (TRUE) if test passed; 0 (FALSE) otherwise.
- *
- * the sole point of this function is for robustness, not security
- * (just so that we don't cause a bad memory access)
- *
- * see Yalnix Manual Page 43.
- *
- * can be easily tuned to return the length of the string, too...
- */
-#define MAX_STRING_LENGTH TERMINAL_MAX_LINE
-int isValidString(char *string) {
-	if (string == NULL) {
-		TracePrintf(1, "isValidString: the given string is a NULL pointer, returning 0 (FALSE)\n");
+int isValidBuffer(void *buffer, int len, unsigned long prot) {
+	if (buffer == NULL) {
+		TracePrintf(1, "isValidBuffer: the given buffer is NULL, returning 0 (FALSE)\n");
 		return 0;
 	}
-	unsigned int basePageBase = DOWN_TO_PAGE(string);
-	unsigned int basePageVpn = basePageBase>>PAGESHIFT;
+	if (len <= 0) {
+		TracePrintf(1, "isValidBuffer: given a non-positive len, returning 1 (TRUE)\n");
+		return 1;
+	}
+	
+	unsigned int firstPageVpn = ((unsigned int) buffer)>>PAGESHIFT;
+	unsigned int maxVpn;
+	struct pte *currPtep;
+	// get the page table entry for the base of the string
+	if (firstPageVpn < MAX_PT_LEN) {
+		maxVpn = MAX_PT_LEN;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR0) + firstPageVpn - KERNEL_BASE_VPN;
+	}
+	else if (firstPageVpn < MAX_PT_LEN * 2) {
+		maxVpn = MAX_PT_LEN * 2;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR1) + firstPageVpn - USER_BASE_VPN;
+	}
+	else {
+		TracePrintf(1, "isValidBuffer: the buffer is not in the valid virtual address space; returning 0 (FALSE)\n");
+		return 0;
+	}
+	
+	unsigned int currVpn = firstPageVpn;
+	int remainingLen = len;
+	while (remainingLen > 0) {
+		// first check if the page is even valid
+		if (currPtep->valid != 1) {
+			TracePrintf(1, "isValidBuffer: encountered an invalid page; returning 0 (FALSE)\n");
+			return 0;
+		}
+		// then check if it INCLUDEs the right prot type(s)
+		if ((currPtep->prot & prot) != prot) {
+			TracePrintf(1, "isValidBuffer: encountered a page with incorrect prot (checking for \"%d\" but the page has \"%d\"); returning 0 (FALSE)\n", prot, currPtep->prot);
+			return 0;
+		}
+		remainingLen -= PAGESIZE;
+		currPtep++;
+	}
+	
+	// no more bytes to check; the buffer is valid.
+	return 1;
+}
+
+int isValidString(char *string) {
+	if (string == NULL) {
+		TracePrintf(1, "isValidString: the given string is NULL, returning 0 (FALSE)\n");
+		return 0;
+	}
+	unsigned int firstPageBase = DOWN_TO_PAGE(string);
+	unsigned int firstPageVpn = firstPageBase>>PAGESHIFT;
 	
 	unsigned int maxVpn;
 	struct pte *currPtep;
 	// get the page table entry for the base of the string
-	if (basePageVpn < MAX_PT_LEN) {
+	if (firstPageVpn < MAX_PT_LEN) {
 		maxVpn = MAX_PT_LEN;
-		currPtep = (struct pte *) ReadRegister(REG_PTBR0) + basePageVpn - KERNEL_BASE_VPN;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR0) + firstPageVpn - KERNEL_BASE_VPN;
 	}
-	else if (basePageVpn < MAX_PT_LEN * 2) {
+	else if (firstPageVpn < MAX_PT_LEN * 2) {
 		maxVpn = MAX_PT_LEN * 2;
-		currPtep = (struct pte *) ReadRegister(REG_PTBR1) + basePageVpn - USER_BASE_VPN;
+		currPtep = (struct pte *) ReadRegister(REG_PTBR1) + firstPageVpn - USER_BASE_VPN;
 	}
 	else {
 		TracePrintf(1, "isValidString: the string is not in the valid virtual address space; returning 0 (FALSE)\n");
@@ -50,9 +86,9 @@ int isValidString(char *string) {
 	
 	// NOTE: cannot use UP_TO_PAGE for nextPageBase!
 	char *currCharp = string;  // pointer to current character
-	unsigned int nextPageBase = basePageBase + PAGESIZE;
+	unsigned int nextPageBase = firstPageBase + PAGESIZE;
 	unsigned int currVpn;
-	for (currVpn = basePageVpn; currVpn < maxVpn; currVpn++) {
+	for (currVpn = firstPageVpn; currVpn < maxVpn; currVpn++) {
 		// first check if the page is even valid and readable
 		if (currPtep->valid != 1 || \
 			(currPtep->prot & PROT_READ) != PROT_READ) {

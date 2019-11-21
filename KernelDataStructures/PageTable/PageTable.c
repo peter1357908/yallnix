@@ -90,12 +90,15 @@ void invalidatePageTableEntry(struct pte *ptep) {
 
 int getAddressRegion(void *addr) {
 	unsigned int intAddr = (unsigned int) addr;
-	if (intAddr >= VMEM_1_BASE && intAddr < VMEM_1_LIMIT)
+	if (intAddr >= VMEM_1_BASE && intAddr < VMEM_1_LIMIT) {
 		return 1;
-	else if (intAddr >= VMEM_0_BASE && intAddr < VMEM_0_LIMIT)
+	}
+	else if (intAddr >= VMEM_0_BASE && intAddr < VMEM_0_LIMIT) {
 		return 0;
-	else 
+	}
+	else {
 		return -1;
+	}
 }
 
 int getAddressProt(void *addr, int region, u_long *prot) {

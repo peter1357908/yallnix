@@ -11,6 +11,12 @@
 int KernelTtyWrite(int tty_id, void *buf, int len) {
 	TracePrintf(1, "KernelTtyWrite() called; tty_id = %d, buf = %x, len = %d\n", tty_id, buf, len);
 	
+	// does not allow writing from the kernel region (even for non-positive len)
+	if ((unsigned int) buf < VMEM_1_BASE) {
+		TracePrintf(1, "KernelTtyWrite: trying to write from a kernel address; returning with ERROR\n");
+		return ERROR;
+	}
+	
 	if (len < 0) {
 		TracePrintf(1, "KernelTtyWrite: the given len is negative, returning with ERROR\n");
 		return ERROR;
@@ -18,6 +24,11 @@ int KernelTtyWrite(int tty_id, void *buf, int len) {
 	if (len == 0) {
 		TracePrintf(1, "KernelTtyWrite: the given len is 0, returning with 0\n");
 		return SUCCESS;
+	}
+	
+	if (isValidBuffer(buf, len, PROT_READ) == 0) {
+		TracePrintf(1, "KernelTtyWrite: the given buffer has unREADable bytes in its first (len = %d) bytes\n", len);
+		return ERROR;
 	}
 	
     // copy buf into R0 so we don't lose it on context switch, see page 32
@@ -59,6 +70,12 @@ int KernelTtyWrite(int tty_id, void *buf, int len) {
 
 int KernelTtyRead(int tty_id, void *buf, int len) {
 	TracePrintf(1, "KernelTtyRead() called; tty_id = %d, buf = %x, len = %d\n", tty_id, buf, len);
+		
+	// does not allow reading into the kernel region (even for non-positive len)
+	if ((unsigned int) buf < VMEM_1_BASE) {
+		TracePrintf(1, "KernelTtyRead: trying to read into a kernel address; returning with ERROR\n");
+		return ERROR;
+	}
 	
 	if (len < 0) {
 		TracePrintf(1, "KernelTtyWrite: the given len is negative, returning with ERROR\n");
@@ -67,6 +84,11 @@ int KernelTtyRead(int tty_id, void *buf, int len) {
 	if (len == 0) {
 		TracePrintf(1, "KernelTtyWrite: the given len is 0, returning with SUCCESS\n");
 		return SUCCESS;
+	}
+	
+	if (isValidBuffer(buf, len, PROT_WRITE) == 0) {
+		TracePrintf(1, "KernelTtyRead: the given buffer has unWRITEable bytes in its first (len = %d) bytes\n", len);
+		return ERROR;
 	}
 	
     return readBuffer(tty_id, buf, len);

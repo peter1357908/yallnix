@@ -82,6 +82,12 @@ void handleTrapKernel(UserContext *uctxt) {
 			(void *)(uctxt->regs)[1], (int)(uctxt->regs)[2]);
 			break;
         #endif /* LINUX */
+		
+		default:
+			TracePrintf(1, "handleTrapKernel: trying to handle a non-existent trap (uctxt->code = %d)\n, halting Yalnix.\n", uctxt->code);
+			Halt();
+			/* --- NOT REACHED ---*/
+			break;
     }
 	
 	(uctxt->regs)[0] = (u_long) return_code;
@@ -106,27 +112,34 @@ void handleTrapMemory(UserContext *uctxt) {
 	TracePrintf(1, "handleTrapMemory() called, currPCB->pid = %d\n", currPCB->pid);
     void *addr = uctxt->addr;
 	TracePrintf(1, "Offending address is %x\n", addr);
-	int targetPageNumber = (int) addr>>PAGESHIFT;
-    int breakPageNumber = (int) (currPCB->brk)>>PAGESHIFT;
+	unsigned int targetPageNumber = ((unsigned int) addr)>>PAGESHIFT;
+    unsigned int breakPageNumber = ((unsigned int) currPCB->brk)>>PAGESHIFT;
 
-    // we leave 'REDZONE' of 1 page
+    /* we leave 'REDZONE' of 1 page. This implicitly makes
+	 * sure that the target addr is in Region 1, above the user
+	 * brk's page.
+	 */
     if (targetPageNumber <= breakPageNumber + 1) {
 		// if we can't, then abort the current process
         KernelExit(ERROR);
     }
-
+	
     struct pte *currPageTable = currPCB->r1PageTable;
-    struct pte *currPte = currPageTable + MAX_PT_LEN - 1;
+    struct pte *currPtep = currPageTable + MAX_PT_LEN - 1;
     u_long pfn;
-    void *currAddr = (void *) (VMEM_1_LIMIT - PAGESIZE);
-    while (((int) currAddr>>PAGESHIFT) >= targetPageNumber) {
-        if (currPte->valid == 0) {
+    unsigned int currAddr = (VMEM_1_LIMIT - PAGESIZE);
+    /* and the while loop implicitely makes sure that we only
+	 * change the pagetable if the target addr is in Region 1,
+	 * below the already validated stack pages.
+	 */
+	while ((currAddr>>PAGESHIFT) >= targetPageNumber) {
+        if (currPtep->valid == 0) {
             if (getFrame(FrameList, numFrames, &pfn) == ERROR) {
                 KernelExit(ERROR);
             }
-            setPageTableEntry(currPte, 1, (PROT_READ|PROT_WRITE), pfn);
+            setPageTableEntry(currPtep, 1, (PROT_READ|PROT_WRITE), pfn);
         }
-        currPte--;
+        currPtep--;
         currAddr -= PAGESIZE;
     }
 }
