@@ -12,6 +12,12 @@
 #include "../LoadProgram.h"
 #include "../Kernel.h"
 
+/* a utility function asserting that the first (len) bytes 
+ * of the buffer INCLUDE the given prot type(s),
+ * as defined in hardware.h
+ * return 1 (TRUE) if test passed; 0 (FALSE) otherwise.
+ * (a non-positive len guarantees a TRUE return value)
+ */
 int isValidBuffer(void *buffer, int len, unsigned long prot) {
 	if (buffer == NULL) {
 		TracePrintf(1, "isValidBuffer: the given buffer is NULL, returning 0 (FALSE)\n");
@@ -60,6 +66,17 @@ int isValidBuffer(void *buffer, int len, unsigned long prot) {
 	return 1;
 }
 
+/* a utility function asserting that the string is not NULL, in
+ * one region (kernel / user), and completely readable.
+ * return 1 (TRUE) if test passed; 0 (FALSE) otherwise.
+ *
+ * the sole point of this function is for robustness, not security
+ * (just so that Kernel doesn't die due to a bad memory access)
+ *
+ * see Yalnix Manual Page 43.
+ *
+ * can be easily tuned to return the length of the string, too...
+ */
 int isValidString(char *string) {
 	if (string == NULL) {
 		TracePrintf(1, "isValidString: the given string is NULL, returning 0 (FALSE)\n");
